@@ -58,6 +58,7 @@ const AdminSettings = () => {
     { id: 'hours', label: 'Hours', icon: Clock },
     { id: 'payment', label: 'Payment', icon: CreditCard },
     { id: 'tax', label: 'Tax & GST', icon: FileText },
+    { id: 'theme', label: 'Theme', icon: Palette },
   ];
 
   if (loading || !settings) {
@@ -286,6 +287,52 @@ const AdminSettings = () => {
           <p className="text-xs text-charcoal-muted">GST will be automatically calculated on invoices using this rate.</p>
         </motion.div>
       )}
+      {/* Theme Tab */}
+{activeTab === 'theme' && (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bg-white rounded-2xl border border-gold/10 p-6 space-y-6">
+    <div>
+      <p className="text-sm font-semibold text-charcoal mb-4">Brand Colors</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-charcoal mb-2">Primary Color</label>
+          <div className="flex items-center gap-3">
+            <input type="color" value={settings.theme?.primaryColor || '#C9A96E'} onChange={(e) => updateField('theme.primaryColor', e.target.value)}
+              className="w-12 h-12 rounded-xl border border-charcoal/10 cursor-pointer" />
+            <input type="text" value={settings.theme?.primaryColor || '#C9A96E'} onChange={(e) => updateField('theme.primaryColor', e.target.value)} className={inputClass} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-charcoal mb-2">Accent Color</label>
+          <div className="flex items-center gap-3">
+            <input type="color" value={settings.theme?.accentColor || '#2C2C2C'} onChange={(e) => updateField('theme.accentColor', e.target.value)}
+              className="w-12 h-12 rounded-xl border border-charcoal/10 cursor-pointer" />
+            <input type="text" value={settings.theme?.accentColor || '#2C2C2C'} onChange={(e) => updateField('theme.accentColor', e.target.value)} className={inputClass} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-charcoal mb-2">Background Color</label>
+          <div className="flex items-center gap-3">
+            <input type="color" value={settings.theme?.backgroundColor || '#FAF7F2'} onChange={(e) => updateField('theme.backgroundColor', e.target.value)}
+              className="w-12 h-12 rounded-xl border border-charcoal/10 cursor-pointer" />
+            <input type="text" value={settings.theme?.backgroundColor || '#FAF7F2'} onChange={(e) => updateField('theme.backgroundColor', e.target.value)} className={inputClass} />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p className="text-sm font-semibold text-charcoal mb-2">Preview</p>
+      <div className="rounded-xl p-6 border" style={{ backgroundColor: settings.theme?.backgroundColor || '#FAF7F2' }}>
+        <h3 className="font-display text-xl font-bold" style={{ color: settings.theme?.accentColor || '#2C2C2C' }}>
+          {settings.salonName || 'Salon Name'}<span style={{ color: settings.theme?.primaryColor || '#C9A96E' }}>.</span>
+        </h3>
+        <p className="text-sm mt-2" style={{ color: settings.theme?.accentColor || '#2C2C2C', opacity: 0.6 }}>{settings.tagline || 'Your tagline here'}</p>
+        <button className="mt-4 px-6 py-2 rounded-lg text-white text-sm font-medium" style={{ background: `linear-gradient(135deg, ${settings.theme?.primaryColor || '#C9A96E'}, ${settings.theme?.accentColor || '#2C2C2C'})` }}>
+          Sample Button
+        </button>
+      </div>
+    </div>
+  </motion.div>
+)}
     </div>
   );
 };

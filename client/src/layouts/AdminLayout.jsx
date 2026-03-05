@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '@/components/Sidebar';
-import { Menu } from 'lucide-react';
-import {
+import { 
+  Menu,
   LayoutDashboard,
   Calendar,
   Scissors,
-  Users,
   UserCog,
+  Users,
   CreditCard,
   BarChart3,
-  Package,
-  FileText,
-  Tag,
-  Settings,
+  Package,    
+  FileText,   
+  Tag,        
+  Settings 
 } from 'lucide-react';
 
 const adminMenu = [
@@ -45,14 +45,21 @@ const AdminLayout = () => {
         onToggleCollapse={() => setCollapsed(!collapsed)}
       />
 
+      {/* Main content wrapper with your touch-to-close logic restored */}
       <div
-  className={`min-h-screen transition-all duration-300 ${collapsed ? 'lg:ml-0' : 'lg:ml-64'}`}
-  onClick={() => { if (!collapsed) setCollapsed(true); }}
->
+        className={`min-h-screen transition-all duration-300 ${
+          collapsed ? 'lg:ml-0' : 'lg:ml-64'
+        }`}
+        onClick={() => { 
+          // This closes the sidebar if it's currently open/expanded when you touch the screen
+          if (!collapsed) setCollapsed(true); 
+        }}
+      >
         <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-gold/10 px-6 h-14 flex items-center justify-between">
           <div className="flex items-center">
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation(); // Prevents the parent div onClick from firing immediately
                 if (window.innerWidth >= 1024) {
                   setCollapsed(!collapsed);
                 } else {
@@ -69,7 +76,7 @@ const AdminLayout = () => {
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-cream-dark text-xs text-charcoal-muted">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               System Online
             </div>
           </div>

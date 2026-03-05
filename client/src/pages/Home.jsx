@@ -1,3 +1,8 @@
+// Add this import (existing imports stay)
+// The landing page already uses CSS variables, so when ThemeProvider
+// updates --color-gold, --color-charcoal, --color-cream,
+// the entire landing page automatically updates!
+// No changes needed if your CSS uses var() properly.
 import { motion } from "framer-motion";
 import { Scissors, Star, Clock, Shield } from "lucide-react";
 

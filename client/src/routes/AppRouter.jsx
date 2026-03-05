@@ -6,6 +6,7 @@ import StaffLayout from '@/layouts/StaffLayout';
 import CustomerLayout from '@/layouts/CustomerLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
+
 import Home from '@/pages/Home';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -14,6 +15,10 @@ import AdminServices from '@/pages/admin/AdminServices';
 import AdminBookings from '@/pages/admin/AdminBookings';
 import AdminStaff from '@/pages/admin/AdminStaff';
 import AdminCustomers from '@/pages/admin/AdminCustomers';
+import SetupWizard from '@/pages/admin/SetupWizard';
+import AdminInventory from '@/pages/admin/AdminInventory';
+import AdminInvoices from '@/pages/admin/AdminInvoices';
+import AdminCoupons from '@/pages/admin/AdminCoupons';
 import AdminPayments from '@/pages/admin/AdminPayments';
 import AdminSettings from '@/pages/admin/AdminSettings';
 import StaffDashboard from '@/pages/staff/StaffDashboard';
@@ -27,6 +32,7 @@ const AppRouter = () => {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/setup" element={<ProtectedRoute allowedRoles={['admin']}><SetupWizard /></ProtectedRoute>} />
         {/* Public */}
         <Route element={<RootLayout />}>
           <Route path="/" element={<Home />} />
@@ -36,6 +42,9 @@ const AppRouter = () => {
 
         {/* Admin */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout /></ProtectedRoute>}>
+          <Route path="inventory" element={<AdminInventory />} />
+          <Route path="invoices" element={<AdminInvoices />} />
+          <Route path="coupons" element={<AdminCoupons />} />
           <Route index element={<AdminDashboard />} />
           <Route path="services" element={<AdminServices />} />
           <Route path="appointments" element={<AdminBookings />} />
