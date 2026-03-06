@@ -7,6 +7,17 @@ const rateLimit = require("express-rate-limit");
 const { errorHandler } = require("./middlewares/errorHandler");
 const healthRoutes = require("./routes/health.routes");
 
+// ✅ Register all models explicitly to prevent MissingSchemaError
+require("./models/User");
+require("./models/Service");
+require("./models/Booking");
+require("./models/Coupon");
+require("./models/Payment");
+require("./models/Inventory");
+require("./models/SalonSettings");
+require("./models/Staff");
+require("./models/Attendance");
+
 const app = express();
 
 // 1. IMPORT ALL ROUTES
@@ -23,16 +34,16 @@ const paymentRoutes = require("./routes/payment.routes");
 const settingsRoutes = require("./routes/settings.routes");
 const analyticsRoutes = require("./routes/analytics.routes");
 
-// 2. SECURITY & CORS (MUST BE AT THE TOP)
+// 2. SECURITY & CORS
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: ["http://localhost:5173", "http://localhost:5174"],
     credentials: true,
   })
 );
 
-// 3. PARSING MIDDLEWARE (MUST BE BEFORE ROUTES)
+// 3. PARSING MIDDLEWARE
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -54,6 +65,14 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // 6. REGISTER ROUTES
+app.get("/", (req, res) => {
+  res.json({
+    success: true,
+    message: "Glamour Salon API is live",
+    env: process.env.NODE_ENV,
+  });
+});
+
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -70,8 +89,7 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/coupons", couponRoutes);
 
-// 7. 404 HANDLER (THE FOOLPROOF VERSION)
-// We use a standard function without a path string to avoid PathErrors
+// 7. 404 HANDLER
 app.use((req, res) => {
   res.status(404).json({
     success: false,

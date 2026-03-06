@@ -2,7 +2,6 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/services/api';
 
 const ThemeContext = createContext(null);
-
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
@@ -17,6 +16,13 @@ export const ThemeProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchTheme = async () => {
+      // ✅ Skip API call if user is not logged in
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data } = await api.get('/settings');
         const s = data.settings;
@@ -46,8 +52,6 @@ export const ThemeProvider = ({ children }) => {
     root.style.setProperty('--color-gold', t.primaryColor);
     root.style.setProperty('--color-charcoal', t.accentColor);
     root.style.setProperty('--color-cream', t.backgroundColor);
-
-    // Generate lighter/darker variants
     root.style.setProperty('--color-gold-light', lightenColor(t.primaryColor, 20));
     root.style.setProperty('--color-gold-dark', darkenColor(t.primaryColor, 20));
   };
@@ -69,7 +73,6 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-// Helper: Lighten hex color
 function lightenColor(hex, percent) {
   const num = parseInt(hex.replace('#', ''), 16);
   const amt = Math.round(2.55 * percent);

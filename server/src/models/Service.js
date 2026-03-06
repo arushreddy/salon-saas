@@ -1,90 +1,174 @@
-const mongoose = require('mongoose');
+const Service = require('../models/Service');
+const { AppError } = require('../middlewares/errorHandler');
 
-const serviceSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: [true, 'Service name is required'],
-      trim: true,
-      maxlength: [100, 'Name cannot exceed 100 characters'],
-    },
-    description: {
-      type: String,
-      trim: true,
-      maxlength: [500, 'Description cannot exceed 500 characters'],
-      default: '',
-    },
-    category: {
-      type: String,
-      required: [true, 'Category is required'],
-      enum: {
-        values: ['hair', 'skin', 'nails', 'makeup', 'spa', 'bridal', 'grooming', 'combo'],
-        message: '{VALUE} is not a valid category',
+// GET /api/services — Public (with filters)
+const getAllServices = async (req, res, next) => {
+  try {
+    const { category, gender, search, active, sort, page = 1, limit = 50 } = req.query;
+
+    const filter = {};
+
+    if (category) filter.category = category;
+    if (gender) filter.gender = { $in: [gender, 'unisex'] };
+    if (active !== undefined) filter.isActive = active === 'true';
+    else filter.isActive = true;
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    let sortOption = { category: 1, name: 1 };
+    if (sort === 'price_low') sortOption = { price: 1 };
+    if (sort === 'price_high') sortOption = { price: -1 };
+    if (sort === 'popular') sortOption = { popularity: -1 };
+    if (sort === 'newest') sortOption = { createdAt: -1 };
+
+    const services = await Service.find(filter)
+      .sort(sortOption)
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await Service.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      services,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
       },
-    },
-    price: {
-      type: Number,
-      required: [true, 'Price is required'],
-      min: [0, 'Price cannot be negative'],
-    },
-    discountPrice: {
-      type: Number,
-      default: null,
-      validate: {
-        validator: function (v) {
-          return v === null || v < this.price;
-        },
-        message: 'Discount price must be less than regular price',
-      },
-    },
-    duration: {
-      type: Number,
-      required: [true, 'Duration is required'],
-      min: [5, 'Duration must be at least 5 minutes'],
-      max: [480, 'Duration cannot exceed 8 hours'],
-    },
-    image: {
-      type: String,
-      default: '',
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    gender: {
-      type: String,
-      enum: ['male', 'female', 'unisex'],
-      default: 'unisex',
-    },
-    popularity: {
-      type: Number,
-      default: 0,
-    },
-  },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    });
+  } catch (error) {
+    next(error);
   }
-);
+};
 
-// Virtual: formatted price
-serviceSchema.virtual('formattedPrice').get(function () {
-  return `₹${this.price.toLocaleString('en-IN')}`;
-});
+// GET /api/services/:id — Public
+const getServiceById = async (req, res, next) => {
+  try {
+    const service = await Service.findById(req.params.id);
+    if (!service) {
+      throw new AppError('Service not found', 404);
+    }
 
-// Virtual: formatted duration
-serviceSchema.virtual('formattedDuration').get(function () {
-  if (this.duration >= 60) {
-    const hrs = Math.floor(this.duration / 60);
-    const mins = this.duration % 60;
-    return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+    res.status(200).json({
+      success: true,
+      service,
+    });
+  } catch (error) {
+    next(error);
   }
-  return `${this.duration} min`;
-});
+};
 
-// Index for faster queries
-serviceSchema.index({ category: 1, isActive: 1 });
-serviceSchema.index({ name: 'text', description: 'text' });
+// POST /api/services — Admin only
+const createService = async (req, res, next) => {
+  try {
+    const { name, description, category, price, discountPrice, duration, image, gender } = req.body;
 
-module.exports = mongoose.model('Service', serviceSchema);
+    if (!name || !category || !price || !duration) {
+      throw new AppError('Name, category, price and duration are required', 400);
+    }
+
+    const service = await Service.create({
+      name,
+      description,
+      category,
+      price,
+      discountPrice: discountPrice || null,
+      duration,
+      image,
+      gender,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Service created successfully',
+      service,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /api/services/:id — Admin only
+const updateService = async (req, res, next) => {
+  try {
+    const service = await Service.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!service) {
+      throw new AppError('Service not found', 404);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Service updated successfully',
+      service,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /api/services/:id — Admin only
+const deleteService = async (req, res, next) => {
+  try {
+    const service = await Service.findByIdAndDelete(req.params.id);
+    if (!service) {
+      throw new AppError('Service not found', 404);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Service deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/services/categories/list — Public
+const getCategories = async (req, res, next) => {
+  try {
+    const categories = await Service.distinct('category', { isActive: true });
+
+    const categoryInfo = {
+      hair: { label: 'Hair', emoji: '💇', description: 'Cuts, styling, coloring & treatments' },
+      skin: { label: 'Skin Care', emoji: '✨', description: 'Facials, cleanup & skin treatments' },
+      nails: { label: 'Nails', emoji: '💅', description: 'Manicure, pedicure & nail art' },
+      makeup: { label: 'Makeup', emoji: '💄', description: 'Party, bridal & everyday looks' },
+      spa: { label: 'Spa & Wellness', emoji: '🧖', description: 'Massage, body wraps & relaxation' },
+      bridal: { label: 'Bridal', emoji: '👰', description: 'Complete bridal packages' },
+      grooming: { label: 'Grooming', emoji: '🧔', description: 'Beard, facial & men\'s care' },
+      combo: { label: 'Combo Packages', emoji: '🎁', description: 'Bundled services at special prices' },
+    };
+
+    const result = categories.map((cat) => ({
+      value: cat,
+      ...categoryInfo[cat],
+    }));
+
+    res.status(200).json({
+      success: true,
+      categories: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getAllServices,
+  getServiceById,
+  createService,
+  updateService,
+  deleteService,
+  getCategories,
+};

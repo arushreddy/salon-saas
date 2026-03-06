@@ -1,9 +1,9 @@
 const Booking = require('../models/Booking');
 const Service = require('../models/Service');
 const User = require('../models/User');
+const Coupon = require('../models/Coupon');
 const { AppError } = require('../middlewares/errorHandler');
 
-// Helper: Generate time slots for a day
 const generateTimeSlots = (startHour = 9, endHour = 21, intervalMinutes = 30) => {
   const slots = [];
   for (let h = startHour; h < endHour; h++) {
@@ -16,7 +16,6 @@ const generateTimeSlots = (startHour = 9, endHour = 21, intervalMinutes = 30) =>
   return slots;
 };
 
-// Helper: Add minutes to time string
 const addMinutesToTime = (timeStr, minutes) => {
   const [h, m] = timeStr.split(':').map(Number);
   const totalMinutes = h * 60 + m + minutes;
@@ -25,15 +24,13 @@ const addMinutesToTime = (timeStr, minutes) => {
   return `${newH}:${newM}`;
 };
 
-// Helper: Check if two time ranges overlap
 const timesOverlap = (start1, end1, start2, end2) => {
   return start1 < end2 && start2 < end1;
 };
 
-// Helper: Get max bookings per slot (based on active staff count)
 const getMaxPerSlot = async () => {
   const staffCount = await User.countDocuments({ role: 'staff', isActive: true });
-  return staffCount > 0 ? staffCount : 3; // Default 3 if no staff registered
+  return staffCount > 0 ? staffCount : 3;
 };
 
 // GET /api/bookings/available-slots
@@ -69,11 +66,8 @@ const getAvailableSlots = async (req, res, next) => {
 
     const availableSlots = allSlots.filter((slotStart) => {
       const slotEnd = addMinutesToTime(slotStart, duration);
-
-      // Don't allow slots past closing time
       if (slotEnd > '21:00') return false;
 
-      // Don't allow past slots for today
       const now = new Date();
       const bookingDate = new Date(date);
       if (
@@ -83,23 +77,19 @@ const getAvailableSlots = async (req, res, next) => {
         return false;
       }
 
-      // Count overlapping bookings for this slot
       const overlapCount = existingBookings.filter((booking) => {
         return timesOverlap(slotStart, slotEnd, booking.timeSlot.start, booking.timeSlot.end);
       }).length;
 
-      // Allow multiple bookings per slot based on staff count
       return overlapCount < maxPerSlot;
     });
 
-    // Format slots for frontend
     const formattedSlots = availableSlots.map((slot) => {
       const endTime = addMinutesToTime(slot, duration);
       const [h] = slot.split(':').map(Number);
       const period = h >= 12 ? 'PM' : 'AM';
       const displayHour = h > 12 ? h - 12 : h === 0 ? 12 : h;
       const displayMinute = slot.split(':')[1];
-
       return {
         start: slot,
         end: endTime,
@@ -122,7 +112,7 @@ const getAvailableSlots = async (req, res, next) => {
 // POST /api/bookings — Customer creates booking
 const createBooking = async (req, res, next) => {
   try {
-    const { serviceId, staffId, date, timeSlot, notes } = req.body;
+    const { serviceId, staffId, date, timeSlot, notes, couponCode } = req.body;
 
     if (!serviceId || !date || !timeSlot?.start) {
       throw new AppError('Service, date and time slot are required', 400);
@@ -158,8 +148,24 @@ const createBooking = async (req, res, next) => {
     }
 
     const totalAmount = service.price;
-    const discountAmount = service.discountPrice ? service.price - service.discountPrice : 0;
-    const finalAmount = service.discountPrice || service.price;
+    let discountAmount = service.discountPrice ? service.price - service.discountPrice : 0;
+    let finalAmount = service.discountPrice || service.price;
+    let appliedCoupon = null;
+
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true });
+      if (coupon) {
+        const validation = coupon.isValid();
+        if (validation.valid && totalAmount >= (coupon.minOrderAmount || 0)) {
+          const couponDiscount = coupon.calculateDiscount(totalAmount);
+          discountAmount += couponDiscount;
+          finalAmount -= couponDiscount;
+          appliedCoupon = coupon.code;
+          coupon.usedCount += 1;
+          await coupon.save();
+        }
+      }
+    }
 
     const booking = await Booking.create({
       customer: req.user.userId,
@@ -170,6 +176,7 @@ const createBooking = async (req, res, next) => {
       totalAmount,
       discountAmount,
       finalAmount,
+      couponCode: appliedCoupon,
       notes: notes || '',
       type: 'online',
       status: 'confirmed',
@@ -195,7 +202,8 @@ const createBooking = async (req, res, next) => {
 // POST /api/bookings/walk-in — Admin creates walk-in booking
 const createWalkInBooking = async (req, res, next) => {
   try {
-    const { customerName, customerPhone, serviceId, staffId, paymentMethod, notes } = req.body;
+    // ✅ Added manualDiscountPercent
+    const { customerName, customerPhone, serviceId, staffId, paymentMethod, notes, couponCode, manualDiscountPercent } = req.body;
 
     if (!serviceId) {
       throw new AppError('Service is required', 400);
@@ -224,8 +232,33 @@ const createWalkInBooking = async (req, res, next) => {
     const endTime = addMinutesToTime(currentTime, service.duration);
 
     const totalAmount = service.price;
-    const discountAmount = service.discountPrice ? service.price - service.discountPrice : 0;
-    const finalAmount = service.discountPrice || service.price;
+    let discountAmount = service.discountPrice ? service.price - service.discountPrice : 0;
+    let finalAmount = service.discountPrice || service.price;
+    let appliedCoupon = null;
+
+    // ✅ Apply coupon first
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase(), isActive: true });
+      if (coupon) {
+        const validation = coupon.isValid();
+        if (validation.valid && totalAmount >= (coupon.minOrderAmount || 0)) {
+          const couponDiscount = coupon.calculateDiscount(totalAmount);
+          discountAmount += couponDiscount;
+          finalAmount -= couponDiscount;
+          appliedCoupon = coupon.code;
+          coupon.usedCount += 1;
+          await coupon.save();
+        }
+      }
+    }
+
+    // ✅ Apply manual discount on top (capped at 10%)
+    if (manualDiscountPercent && Number(manualDiscountPercent) > 0) {
+      const pct = Math.min(10, Math.max(0, Number(manualDiscountPercent)));
+      const manualDiscount = Math.round(finalAmount * pct / 100);
+      discountAmount += manualDiscount;
+      finalAmount -= manualDiscount;
+    }
 
     const booking = await Booking.create({
       customer: customer?._id || req.user.userId,
@@ -236,6 +269,7 @@ const createWalkInBooking = async (req, res, next) => {
       totalAmount,
       discountAmount,
       finalAmount,
+      couponCode: appliedCoupon,
       notes: notes || '',
       type: 'walk-in',
       status: 'in-progress',
@@ -370,32 +404,15 @@ const getTodayStats = async (req, res, next) => {
     ]);
 
     const revenueResult = await Booking.aggregate([
-      {
-        $match: {
-          ...dateFilter,
-          paymentStatus: 'paid',
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$finalAmount' },
-        },
-      },
+      { $match: { ...dateFilter, paymentStatus: 'paid' } },
+      { $group: { _id: null, total: { $sum: '$finalAmount' } } },
     ]);
 
     const todayRevenue = revenueResult[0]?.total || 0;
 
     res.status(200).json({
       success: true,
-      stats: {
-        total,
-        confirmed,
-        inProgress,
-        completed,
-        cancelled,
-        todayRevenue,
-      },
+      stats: { total, confirmed, inProgress, completed, cancelled, todayRevenue },
     });
   } catch (error) {
     next(error);
