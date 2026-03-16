@@ -1,77 +1,122 @@
+// src/controllers/settings.controller.js — v3 (multi-tenant)
 const SalonSettings = require('../models/SalonSettings');
-const { AppError } = require('../middlewares/errorHandler');
 
-// GET /api/settings
+const MASK = '••••••••';
+
+/* ── Strip secrets before sending to client ─────────────── */
+function safeCopy(doc) {
+  const s = doc.toObject ? doc.toObject() : { ...doc };
+  if (s.payment?.razorpayKeySecret)
+    s.payment.razorpayKeySecret = s.payment.razorpayKeySecret ? MASK : '';
+  if (s.adminPIN && s.adminPIN.length > 0)
+    s.adminPIN = ''; // never send PIN to frontend
+  return s;
+}
+
+/* ── GET /api/settings ──────────────────────────────────── */
 const getSettings = async (req, res, next) => {
   try {
-    let settings = await SalonSettings.findOne();
-    if (!settings) {
-      settings = await SalonSettings.create({});
-    }
-
-    // Don't expose Razorpay secret to frontend
-    const safeSettings = settings.toObject();
-    if (safeSettings.payment) {
-      safeSettings.payment.razorpayKeySecret = safeSettings.payment.razorpayKeySecret ? '••••••••' : '';
-    }
-
-    res.status(200).json({
-      success: true,
-      settings: safeSettings,
-    });
-  } catch (error) {
-    next(error);
-  }
+    let settings = await SalonSettings.findOne({ salonId: req.salonId });
+    if (!settings) settings = await SalonSettings.create({ salonId: req.salonId });
+    res.status(200).json({ success: true, settings: safeCopy(settings) });
+  } catch (error) { next(error); }
 };
 
-// PUT /api/settings
+/* ── PUT /api/settings ──────────────────────────────────── */
 const updateSettings = async (req, res, next) => {
   try {
-    let settings = await SalonSettings.findOne();
-    if (!settings) {
-      settings = await SalonSettings.create({});
+    let settings = await SalonSettings.findOne({ salonId: req.salonId });
+    if (!settings) settings = await SalonSettings.create({ salonId: req.salonId });
+
+    const u = req.body;
+
+    const FLAT = [
+      'salonName','tagline','phone','email','website','upiId','gstNumber',
+      'taxRate','currency','showGSTOnReceipt','printReceiptAuto',
+      'receiptHeader','receiptFooter',
+      'maxAdvanceBookingDays','cancellationHours','maxBookingsPerSlot',
+      'bookingConfirmMode','walkInEnabled','onlineBookingEnabled','requirePhoneVerify',
+      'bronzeThreshold','silverThreshold','goldThreshold','platinumThreshold',
+      'defaultCommission','lateThresholdMins','workingDaysPerMonth','maxAdvancePerStaff',
+      'staffCanViewOtherBookings','staffCanEditProfile','staffCanSeeCustomerPhone',
+      'lowStockThreshold','criticalStockThreshold','inventoryAlertEnabled','deductStockOnBooking',
+      'receptionistCanViewRevenue','receptionistCanDeleteBookings','receptionistCanEditPrices',
+      'sessionTimeoutMins',
+      'msgBookingConfirm','msgBookingReminder','msgPaymentReceipt','msgCancellation',
+    ];
+    FLAT.forEach(k => { if (u[k] !== undefined) settings[k] = u[k]; });
+
+    if (u.adminPIN && u.adminPIN !== MASK && u.adminPIN.length >= 4)
+      settings.adminPIN = u.adminPIN;
+
+    if (u.address)
+      settings.address = { ...settings.address.toObject(), ...u.address };
+    if (u.operatingHours)
+      settings.operatingHours = { ...settings.operatingHours.toObject(), ...u.operatingHours };
+    if (u.weeklySchedule) {
+      const ws = settings.weeklySchedule.toObject();
+      Object.entries(u.weeklySchedule).forEach(([day, val]) => {
+        if (ws[day] !== undefined) ws[day] = { ...ws[day], ...val };
+      });
+      settings.weeklySchedule = ws;
+    }
+    if (u.billing)
+      settings.billing = { ...settings.billing.toObject(), ...u.billing };
+    if (u.theme)
+      settings.theme = { ...settings.theme.toObject(), ...u.theme };
+
+    if (u.payment) {
+      const cur = settings.payment.toObject();
+      const upd = { ...u.payment };
+      if (!upd.razorpayKeySecret || upd.razorpayKeySecret === MASK)
+        delete upd.razorpayKeySecret;
+      settings.payment = { ...cur, ...upd };
     }
 
-    const updates = req.body;
-
-    // Update each section
-    if (updates.salonName) settings.salonName = updates.salonName;
-    if (updates.tagline) settings.tagline = updates.tagline;
-    if (updates.phone) settings.phone = updates.phone;
-    if (updates.email) settings.email = updates.email;
-    if (updates.address) settings.address = { ...settings.address.toObject(), ...updates.address };
-    if (updates.gstNumber !== undefined) settings.gstNumber = updates.gstNumber;
-    if (updates.operatingHours) settings.operatingHours = { ...settings.operatingHours.toObject(), ...updates.operatingHours };
-    if (updates.weeklySchedule) settings.weeklySchedule = { ...settings.weeklySchedule.toObject(), ...updates.weeklySchedule };
-    if (updates.taxRate !== undefined) settings.taxRate = updates.taxRate;
-    if (updates.theme) settings.theme = { ...settings.theme.toObject(), ...updates.theme };
-
-    // Payment settings — handle Razorpay secret carefully
-    if (updates.payment) {
-      const paymentUpdate = { ...updates.payment };
-      // Don't overwrite secret with masked value
-      if (paymentUpdate.razorpayKeySecret === '••••••••' || !paymentUpdate.razorpayKeySecret) {
-        delete paymentUpdate.razorpayKeySecret;
+    // ── Public website customization ──────────────────────────────────────
+    if (u.publicWebsite) {
+      const cur = settings.publicWebsite
+        ? (settings.publicWebsite.toObject ? settings.publicWebsite.toObject() : { ...settings.publicWebsite })
+        : {};
+      settings.publicWebsite = { ...cur, ...u.publicWebsite };
+      // Sync customDomain to Salon model as well
+      if (u.publicWebsite.customDomain !== undefined && req.salonId) {
+        const Salon = require('../models/Salon');
+        await Salon.findByIdAndUpdate(req.salonId, {
+          customDomain: u.publicWebsite.customDomain || '',
+        });
       }
-      settings.payment = { ...settings.payment.toObject(), ...paymentUpdate };
     }
 
     await settings.save();
-
-    // Return safe version
-    const safeSettings = settings.toObject();
-    if (safeSettings.payment) {
-      safeSettings.payment.razorpayKeySecret = safeSettings.payment.razorpayKeySecret ? '••••••••' : '';
-    }
-
-    res.status(200).json({
-      success: true,
-      message: 'Settings updated successfully',
-      settings: safeSettings,
-    });
-  } catch (error) {
-    next(error);
-  }
+    res.status(200).json({ success: true, message: 'Settings saved', settings: safeCopy(settings) });
+  } catch (error) { next(error); }
 };
 
-module.exports = { getSettings, updateSettings };
+/* ── GET /api/settings/public ── (no auth, for booking page) ── */
+const getPublicSettings = async (req, res, next) => {
+  try {
+    // resolveTenant middleware sets req.salonId on public routes
+    const filter = req.salonId ? { salonId: req.salonId } : {};
+    let settings = await SalonSettings.findOne(filter).lean();
+    if (!settings) settings = {};
+    const pub = {
+      salonName:            settings.salonName,
+      tagline:              settings.tagline,
+      phone:                settings.phone,
+      email:                settings.email,
+      website:              settings.website,
+      address:              settings.address,
+      operatingHours:       settings.operatingHours,
+      weeklySchedule:       settings.weeklySchedule,
+      acceptCash:           settings.payment?.acceptCash,
+      acceptUPI:            settings.payment?.acceptUPI,
+      acceptCard:           settings.payment?.acceptCard,
+      walkInEnabled:        settings.walkInEnabled,
+      onlineBookingEnabled: settings.onlineBookingEnabled,
+    };
+    res.status(200).json({ success: true, settings: pub });
+  } catch (error) { next(error); }
+};
+
+module.exports = { getSettings, updateSettings, getPublicSettings };

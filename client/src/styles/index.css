@@ -43,6 +43,9 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent font size inflation on mobile landscape */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -65,23 +68,126 @@ a {
   color: inherit;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-cream); }
+::-webkit-scrollbar-thumb { background: var(--color-gold-light); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-gold); }
+
+/* ─── Page layout: main content area ────────────────────────────────────── */
+/* Used by AdminLayout and StaffLayout <main> */
+.glm-page-main {
+  padding: 28px 24px 80px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--color-cream);
+/* Tablet: slightly reduced padding */
+@media (max-width: 1024px) {
+  .glm-page-main {
+    padding: 20px 18px 72px;
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--color-gold-light);
-  border-radius: 10px;
+/* Mobile: compact padding, extra bottom for bottom nav */
+@media (max-width: 640px) {
+  .glm-page-main {
+    padding: 14px 12px 90px;
+  }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-gold);
+/* ─── Responsive grid utilities ──────────────────────────────────────────── */
+/* Auto-fit grids that become single column on mobile */
+.glm-grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
 }
 
+@media (max-width: 480px) {
+  .glm-grid-auto {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
+
+/* Two-column grid that stacks on mobile */
+.glm-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .glm-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* Three-column grid: 3 → 2 → 1 */
+.glm-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .glm-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 500px) {
+  .glm-grid-3 { grid-template-columns: 1fr; }
+}
+
+/* ─── Touch targets ──────────────────────────────────────────────────────── */
+/* Minimum 44px tap targets on mobile */
+@media (max-width: 1023px) {
+  button, [role="button"], a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception: inline text links and icon-only buttons can be smaller */
+  button.glm-inline, a.glm-inline {
+    min-height: unset;
+    min-width: unset;
+  }
+}
+
+/* ─── Responsive table: horizontal scroll on small screens ───────────────── */
+.glm-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+}
+
+.glm-table-wrap table {
+  min-width: 580px;
+}
+
+/* ─── Responsive modals / drawers ────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Full-screen modals on mobile */
+  .glm-modal-full-mobile {
+    position: fixed !important;
+    inset: 0 !important;
+    border-radius: 0 !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ─── Typography scaling ─────────────────────────────────────────────────── */
+/* Fluid heading sizes */
+@media (max-width: 640px) {
+  h1 { font-size: clamp(1.25rem, 5vw, 1.75rem) !important; }
+  h2 { font-size: clamp(1.1rem,  4vw, 1.4rem)  !important; }
+  h3 { font-size: clamp(1rem,    3.5vw, 1.2rem) !important; }
+}
+
+/* ─── Utility classes ────────────────────────────────────────────────────── */
 .luxury-gradient {
   background: linear-gradient(135deg, var(--color-gold-dark) 0%, var(--color-gold) 50%, var(--color-gold-light) 100%);
 }
@@ -97,4 +203,12 @@ a {
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(201, 169, 110, 0.12);
+}
+
+/* ─── Header responsive ──────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Compact header on very small screens */
+  .glm-header-right > * + * {
+    margin-left: 8px;
+  }
 }

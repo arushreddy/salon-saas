@@ -1,23 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getAllServices,
-  getServiceById,
-  createService,
-  updateService,
-  deleteService,
-  getCategories,
+  getAllServices, getServiceById, createService,
+  updateService, patchService, deleteService, getCategories,
 } = require('../controllers/service.controller');
-const { protect, authorize } = require('../middlewares/auth.middleware');
+const { protect, authorize, guardTenant } = require('../middlewares/auth.middleware');
 
-// Public routes
-router.get('/', getAllServices);
+// Public routes — no auth, no tenant guard
+// (tenant is resolved from JWT/slug in getAllServices when needed)
 router.get('/categories/list', getCategories);
-router.get('/:id', getServiceById);
+router.get('/:id',             getServiceById);
 
-// Admin only routes
-router.post('/', protect, authorize('admin'), createService);
-router.put('/:id', protect, authorize('admin'), updateService);
-router.delete('/:id', protect, authorize('admin'), deleteService);
+// Authenticated routes — guardTenant attaches req.salonId from JWT
+router.get('/',         protect, guardTenant, getAllServices);
+router.post('/',        protect, guardTenant, authorize('admin'), createService);
+router.put('/:id',      protect, guardTenant, authorize('admin'), updateService);
+router.patch('/:id',    protect, guardTenant, authorize('admin'), patchService);
+router.delete('/:id',   protect, guardTenant, authorize('admin'), deleteService);
 
 module.exports = router;

@@ -59,16 +59,29 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    transactionId: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     collectedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,
+    },
+    // ── Multi-tenancy key (Phase 1) ─────────────────────────────────────────
+    salonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Salon',
+      required: true,
+      index: true,
     },
   },
   {
     timestamps: true,
   }
 );
+
 
 paymentSchema.index({ booking: 1 });
 paymentSchema.index({ customer: 1 });

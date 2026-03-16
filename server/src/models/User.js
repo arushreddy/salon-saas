@@ -40,8 +40,31 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['customer', 'staff', 'receptionist', 'admin'],
+      enum: [
+        'super_admin',        // platform owner — no salonId
+        'franchise_owner',    // manages multiple salons under a franchise
+        'franchise_manager',  // read-only observer across franchise branches
+        'admin',              // salon admin (existing)
+        'receptionist',       // salon receptionist (existing)
+        'staff',              // salon stylist (existing)
+        'customer',           // end customer (existing)
+      ],
       default: 'customer',
+    },
+    // ── Multi-tenancy keys (Phase 1) ──────────────────────────────────────
+    // null for super_admin; set for everyone else after migration
+    salonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Salon',
+      default: null,
+      index: true,
+    },
+    // null unless user belongs to a franchise
+    franchiseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Franchise',
+      default: null,
+      index: true,
     },
     avatar: {
       type: String,
@@ -88,3 +111,6 @@ userSchema.methods.toSafeObject = function () {
 };
 
 module.exports = mongoose.model('User', userSchema);
+
+
+

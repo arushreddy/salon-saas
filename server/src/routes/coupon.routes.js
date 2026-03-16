@@ -1,12 +1,14 @@
 const express = require('express');
-const router = express.Router();
+const router  = express.Router();
 const { getAllCoupons, createCoupon, validateCoupon, updateCoupon, deleteCoupon } = require('../controllers/coupon.controller');
-const { protect, authorize } = require('../middlewares/auth.middleware');
+const { protect, authorize, guardTenant } = require('../middlewares/auth.middleware');
 
-router.get('/', protect, authorize('admin'), getAllCoupons);
-router.post('/', protect, authorize('admin'), createCoupon);
-router.post('/validate', protect, validateCoupon);
-router.put('/:id', protect, authorize('admin'), updateCoupon);
-router.delete('/:id', protect, authorize('admin'), deleteCoupon);
+router.use(protect, guardTenant);
+
+router.get('/',       authorize('admin'), getAllCoupons);
+router.post('/',      authorize('admin'), createCoupon);
+router.post('/validate', validateCoupon);
+router.put('/:id',    authorize('admin'), updateCoupon);
+router.delete('/:id', authorize('admin'), deleteCoupon);
 
 module.exports = router;

@@ -1,18 +1,21 @@
+// ─── attendance.routes.js ──────────────────────────────────────────────────
 const express = require('express');
-const router = express.Router();
+const router  = express.Router();
 const {
-  clockIn,
-  clockOut,
-  getTodayAttendance,
-  getMyAttendance,
-  markAttendance,
+  clockIn, clockOut, getMyAttendance, getTodayAttendance,
+  markAttendance, getAttendanceReport, getStaffList, applyDeduction,
 } = require('../controllers/attendance.controller');
-const { protect, authorize } = require('../middlewares/auth.middleware');
+const { protect, authorize, guardTenant } = require('../middlewares/auth.middleware');
 
-router.post('/clock-in', protect, authorize('staff', 'receptionist'), clockIn);
-router.post('/clock-out', protect, authorize('staff', 'receptionist'), clockOut);
-router.get('/today', protect, authorize('admin'), getTodayAttendance);
-router.get('/my', protect, getMyAttendance);
-router.post('/mark', protect, authorize('admin'), markAttendance);
+router.use(protect, guardTenant);
+
+router.post('/clock-in',  authorize('staff','receptionist'), clockIn);
+router.post('/clock-out', authorize('staff','receptionist'), clockOut);
+router.get('/my',         getMyAttendance);
+router.get('/today',      authorize('admin','receptionist'), getTodayAttendance);
+router.get('/report',     authorize('admin','receptionist'), getAttendanceReport);
+router.get('/staff-list', authorize('admin','receptionist'), getStaffList);
+router.post('/mark',      authorize('admin','receptionist'), markAttendance);
+router.post('/deduction', authorize('admin'), applyDeduction);
 
 module.exports = router;

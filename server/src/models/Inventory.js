@@ -62,6 +62,13 @@ const inventorySchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // ── Multi-tenancy key (Phase 1) ─────────────────────────────────────────
+    salonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Salon',
+      required: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -75,6 +82,7 @@ inventorySchema.virtual('isLowStock').get(function () {
 inventorySchema.virtual('stockValue').get(function () {
   return this.quantity * this.costPrice;
 });
+
 
 inventorySchema.index({ name: 'text', brand: 'text' });
 inventorySchema.index({ category: 1 });

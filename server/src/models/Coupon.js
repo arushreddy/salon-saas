@@ -59,6 +59,13 @@ const couponSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // ── Multi-tenancy key (Phase 1) ─────────────────────────────────────────
+    salonId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Salon',
+      required: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -84,5 +91,6 @@ couponSchema.methods.calculateDiscount = function (amount) {
   }
   return Math.min(discount, amount);
 };
+
 
 module.exports = mongoose.model('Coupon', couponSchema);
