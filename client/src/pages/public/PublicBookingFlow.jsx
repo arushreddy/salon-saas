@@ -11,7 +11,7 @@ import {
   ChevronLeft, RefreshCw, X,
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api/public';
+const API = `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/public`;
 
 const C = {
   bg: '#FDFAF5', card: '#FFFFFF',
@@ -130,7 +130,6 @@ export default function PublicBookingFlow() {
       setBooking(data.booking);
 
       // ── Auto-notify salon admin via WhatsApp ──────────────────────────
-      // Opens WhatsApp on the admin's phone with full booking details
       const adminPhone = data.booking.salonAdminPhone;
       if (adminPhone) {
         const adminMsg = [
@@ -146,7 +145,6 @@ export default function PublicBookingFlow() {
           form.notes ? `📝 Notes: ${form.notes}` : '',
         ].filter(Boolean).join('\n');
 
-        // Small delay so success screen renders first
         setTimeout(() => {
           window.open(
             `https://wa.me/${adminPhone.replace(/\D/g, '')}?text=${encodeURIComponent(adminMsg)}`,
@@ -213,7 +211,6 @@ export default function PublicBookingFlow() {
           We'll see you soon at {salon?.name}
         </p>
 
-        {/* Booking card */}
         <div style={{ background: '#FDFAF5', borderRadius: 16, padding: '18px 20px', border: `1px solid ${C.border}`, textAlign: 'left', marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${C.border}` }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: C.inkLight, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Ref No.</span>
@@ -233,10 +230,7 @@ export default function PublicBookingFlow() {
           ))}
         </div>
 
-        {/* WhatsApp buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-
-          {/* Notify salon admin */}
           {booking.salonAdminPhone && (
             <a
               href={`https://wa.me/${booking.salonAdminPhone.replace(/\D/g,'')}?text=${encodeURIComponent([
@@ -260,7 +254,6 @@ export default function PublicBookingFlow() {
             </a>
           )}
 
-          {/* Customer saves their own confirmation */}
           <a
             href={`https://wa.me/?text=${encodeURIComponent([
               `✅ *Booking Confirmed — ${booking.salonName || salon?.name}*`,
@@ -405,7 +398,6 @@ export default function PublicBookingFlow() {
                 <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 400, fontStyle: 'italic', color: C.ink, margin: '0 0 4px' }}>Choose a Stylist</h2>
                 <p style={{ color: C.inkLight, fontSize: 13, margin: '0 0 20px' }}>Optional — or let us assign the best available</p>
 
-                {/* Any stylist option */}
                 <div onClick={() => { setSelectedStaff(null); next(); }} style={{
                   background: selectedStaff === null ? C.goldPale : C.card,
                   border: `2px solid ${selectedStaff === null ? C.gold : C.border}`,
@@ -429,10 +421,7 @@ export default function PublicBookingFlow() {
                     borderRadius: 14, padding: '16px 18px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10,
                   }}>
-                    <div style={{
-                      width: 44, height: 44, borderRadius: 12, flexShrink: 0, overflow: 'hidden',
-                      background: C.goldPale, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, overflow: 'hidden', background: C.goldPale, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {s.photo
                         ? <img src={s.photo} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
                         : <span style={{ fontSize: 18, fontWeight: 700, color: C.gold }}>{s.name?.charAt(0)}</span>
@@ -456,7 +445,6 @@ export default function PublicBookingFlow() {
                   {selectedService?.name} · ₹{selectedService?.price} · {selectedService?.duration} min
                 </p>
 
-                {/* Date row */}
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: C.inkLight, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Select Date</div>
                   <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
@@ -483,7 +471,6 @@ export default function PublicBookingFlow() {
                   </div>
                 </div>
 
-                {/* Time slots */}
                 {selectedDate && (
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.inkLight, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
@@ -523,7 +510,6 @@ export default function PublicBookingFlow() {
                 <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, fontWeight: 400, fontStyle: 'italic', color: C.ink, margin: '0 0 4px' }}>Your Details</h2>
                 <p style={{ color: C.inkLight, fontSize: 13, margin: '0 0 20px' }}>We'll use these to confirm your appointment</p>
 
-                {/* Booking summary */}
                 <div style={{ background: C.goldPale, border: `1px solid ${C.gold}40`, borderRadius: 14, padding: '14px 16px', marginBottom: 20 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: C.gold, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Booking Summary</div>
                   {[
@@ -540,7 +526,6 @@ export default function PublicBookingFlow() {
                   ))}
                 </div>
 
-                {/* Form fields */}
                 {[
                   { key: 'name', label: 'Full Name *', placeholder: 'Priya Sharma', icon: User, type: 'text' },
                   { key: 'phone', label: 'Phone Number *', placeholder: '98765 43210', icon: Phone, type: 'tel' },
