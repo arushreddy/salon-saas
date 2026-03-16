@@ -52,7 +52,10 @@ app.use(helmet({ crossOriginEmbedderPolicy: false }));
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
+  'https://salon-saas-one.vercel.app',
+  'https://salon-saas-git-main-spartan2.vercel.app',
   process.env.CLIENT_URL,
+  process.env.CLIENT_URL_2,
 ].filter(Boolean);
 
 app.use(cors({
@@ -61,6 +64,8 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) return cb(null, true);
     const platformDomain = process.env.PLATFORM_DOMAIN || 'yourplatform.com';
     if (origin.endsWith(`.${platformDomain}`)) return cb(null, true);
+    // Allow all vercel preview deployments for this project
+    if (origin.includes('salon-saas') && origin.endsWith('.vercel.app')) return cb(null, true);
     cb(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
@@ -72,14 +77,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // 4. RATE LIMITING
-// General: 100 req / 15 min
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 100,
   standardHeaders: true, legacyHeaders: false,
   message: { success: false, message: 'Too many requests. Please try again later.' },
 });
 
-// Auth: 10 attempts / 15 min — brute force protection
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 10,
   standardHeaders: true, legacyHeaders: false,
@@ -87,7 +90,6 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' },
 });
 
-// Public booking: 60 req / 15 min
 const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 60,
   standardHeaders: true, legacyHeaders: false,
