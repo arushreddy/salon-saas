@@ -2,6 +2,7 @@ require("dotenv").config();
 const app       = require("./src/app");
 const connectDB = require("./src/config/db");
 const logger    = require("./src/utils/logger");
+console.log("Mongo URI exists:", !!process.env.MONGODB_URI);
 
 const PORT = process.env.PORT || 5000;
 
