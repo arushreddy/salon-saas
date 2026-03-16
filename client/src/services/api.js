@@ -52,15 +52,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-```
-
-Only **line 3** changed. Now:
-
-1. Replace your file with this
-2. Create `client/.env`:
-```
-VITE_API_URL=https://tarsalontech.onrender.com/api
-```
-3. Add in Vercel → Settings → Environment Variables:
-```
-VITE_API_URL = https://tarsalontech.onrender.com/api
