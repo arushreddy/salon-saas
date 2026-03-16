@@ -5,33 +5,47 @@
 //   TWILIO_AUTH_TOKEN=xxxxxxxx
 //   TWILIO_WA_FROM=whatsapp:+14155238886
 
+// ── Safe Twilio client (won't crash if package not installed) ─────────────
 const getTwilioClient = () => {
   const sid   = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   if (!sid || !token) return null;
-  const twilio = require('twilio');
-  return twilio(sid, token);
+  try {
+    return require('twilio')(sid, token);
+  } catch {
+    console.warn('[WhatsApp] twilio package not found. Run: npm install twilio');
+    return null;
+  }
 };
 
 const FROM = () => process.env.TWILIO_WA_FROM || 'whatsapp:+14155238886';
 
 // ── Normalize phone to whatsapp:+91XXXXXXXXXX format ──────────────────────
 const toWANumber = (phone) => {
+  if (!phone) return null;
   const digits = String(phone).replace(/\D/g, '');
   const ten = digits.length === 12 && digits.startsWith('91')
     ? digits.slice(2)
     : digits.length === 11 && digits.startsWith('0')
     ? digits.slice(1)
     : digits;
+  if (ten.length !== 10) return null;
   return `whatsapp:+91${ten}`;
 };
 
 // ── Core send function ─────────────────────────────────────────────────────
 const sendWA = async (phone, message) => {
-  const client = getTwilioClient();
   const to = toWANumber(phone);
 
+  if (!to) {
+    console.warn(`[WhatsApp] Invalid phone number: ${phone}`);
+    return { skipped: true };
+  }
+
+  const client = getTwilioClient();
+
   if (!client) {
+    // Dev mode — log to console, never crash
     console.log(`\n[WA DEV] To: ${to}\n${message}\n`);
     return { devMode: true };
   }
@@ -43,7 +57,8 @@ const sendWA = async (phone, message) => {
     return { devMode: false, sid: msg.sid };
   } catch (err) {
     console.error(`[WhatsApp] ❌ Error:`, err.message);
-    throw err;
+    // Never throw — WA failure must not crash booking/payment flows
+    return { error: err.message };
   }
 };
 
@@ -72,7 +87,7 @@ const sendBookingConfirmation = async ({ phone, customerName, salonName, service
     `• Service: ${serviceName}\n` +
     `• Staff: ${staffName || 'Any available'}\n` +
     `• Date: ${dateStr}\n` +
-    `• Time: ${timeSlot.start} – ${timeSlot.end}\n` +
+    `• Time: ${timeSlot?.start} – ${timeSlot?.end}\n` +
     `• Ref No: ${refNo}\n` +
     (amount ? `• Amount: ₹${amount}\n` : '') +
     `\nSee you soon! 💇`;
@@ -91,7 +106,7 @@ const sendBookingReminder = async ({ phone, customerName, salonName, serviceName
     `• Salon: ${salonName}\n` +
     `• Service: ${serviceName}\n` +
     `• Date: ${dateStr}\n` +
-    `• Time: ${timeSlot.start}\n` +
+    `• Time: ${timeSlot?.start}\n` +
     `• Ref No: ${refNo}\n\n` +
     `See you tomorrow! 😊`;
   return await sendWA(phone, message);
