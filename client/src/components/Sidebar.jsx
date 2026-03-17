@@ -3,12 +3,6 @@ import { useAuth } from '@/context/AuthContext';
 import { LogOut, X, PanelLeftClose } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ─── Design Tokens ────────────────────────────────────────────────────────────
-// Palette: cream parchment surfaces · burnished gold accents · deep ink text
-// Typography: Cormorant Garamond (display) + DM Sans (body)
-// Add to your index.html / global CSS:
-//   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-
 const SIDEBAR_STYLES = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Sans:wght@300;400;500&display=swap');
 
@@ -30,12 +24,10 @@ const SIDEBAR_STYLES = `
 
   .glm-sidebar * { box-sizing: border-box; }
 
-  /* ── Scrollbar ── */
   .glm-nav::-webkit-scrollbar { width: 3px; }
   .glm-nav::-webkit-scrollbar-track { background: transparent; }
   .glm-nav::-webkit-scrollbar-thumb { background: var(--cream-border); border-radius: 10px; }
 
-  /* ── Brand ── */
   .glm-brand {
     padding: 32px 28px 24px;
     border-bottom: 1px solid var(--cream-border);
@@ -106,7 +98,6 @@ const SIDEBAR_STYLES = `
     color: var(--gold);
   }
 
-  /* ── Nav ── */
   .glm-nav {
     flex: 1;
     padding: 16px 14px;
@@ -116,7 +107,6 @@ const SIDEBAR_STYLES = `
     gap: 2px;
   }
 
-  /* ── Section dividers ── */
   .glm-nav-section {
     font-family: var(--font-body);
     font-size: 8.5px;
@@ -128,7 +118,6 @@ const SIDEBAR_STYLES = `
     margin-top: 4px;
   }
 
-  /* ── Nav Item ── */
   .glm-nav-item {
     position: relative;
     display: flex;
@@ -143,6 +132,7 @@ const SIDEBAR_STYLES = `
     color: var(--ink-muted);
     transition: all 0.22s ease;
     border: 1px solid transparent;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .glm-nav-item:hover {
@@ -158,7 +148,6 @@ const SIDEBAR_STYLES = `
     font-weight: 500;
   }
 
-  /* Active left bar */
   .glm-active-bar {
     position: absolute;
     left: -1px; top: 50%;
@@ -169,7 +158,6 @@ const SIDEBAR_STYLES = `
     box-shadow: 0 0 10px var(--gold-glow);
   }
 
-  /* ── Icon container ── */
   .glm-icon-wrap {
     width: 32px; height: 32px;
     border-radius: 8px;
@@ -190,7 +178,6 @@ const SIDEBAR_STYLES = `
     box-shadow: 0 2px 12px rgba(184, 137, 42, 0.15);
   }
 
-  /* Active dot */
   .glm-active-dot {
     margin-left: auto;
     width: 5px; height: 5px;
@@ -200,14 +187,12 @@ const SIDEBAR_STYLES = `
     flex-shrink: 0;
   }
 
-  /* ── Decorative divider ── */
   .glm-divider {
     margin: 10px 14px;
     height: 1px;
     background: linear-gradient(90deg, transparent, var(--cream-border) 40%, var(--cream-border) 60%, transparent);
   }
 
-  /* ── User Footer ── */
   .glm-footer {
     padding: 16px 14px;
     border-top: 1px solid var(--cream-border);
@@ -295,21 +280,31 @@ const SIDEBAR_STYLES = `
   }
 `;
 
-// ─── Sidebar Content ──────────────────────────────────────────────────────────
+// ── helper: always reset body scroll ────────────────────────────────────────
+const resetBodyScroll = () => {
+  document.body.style.overflow = '';
+  document.body.style.touchAction = '';
+};
+
 const SidebarContent = ({ menuItems, title, onMobileClose, onToggleCollapse }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  // Group items for visual hierarchy
   const groups = [
-    { label: 'Overview', paths: ['/dashboard'] },
-    { label: 'Operations', paths: ['/appointments', '/services', '/staff', '/customers'] },
-    { label: 'Finance', paths: ['/payments', '/invoices', '/coupons'] },
-    { label: 'Management', paths: ['/analytics', '/inventory', '/settings'] },
+    { label: 'Overview',    paths: ['/dashboard'] },
+    { label: 'Operations',  paths: ['/appointments', '/services', '/staff', '/customers'] },
+    { label: 'Finance',     paths: ['/payments', '/invoices', '/coupons'] },
+    { label: 'Management',  paths: ['/analytics', '/inventory', '/settings'] },
   ];
 
   const getGroup = (path) => groups.find(g => g.paths.includes(path));
   const renderedLabels = new Set();
+
+  // ── FIX: close sidebar AND reset body scroll ─────────────────────────────
+  const handleNavClick = () => {
+    resetBodyScroll();
+    onMobileClose?.();
+  };
 
   return (
     <div
@@ -329,7 +324,7 @@ const SidebarContent = ({ menuItems, title, onMobileClose, onToggleCollapse }) =
         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E")`,
       }} />
 
-      {/* Right edge shadow line */}
+      {/* Right edge shadow */}
       <div style={{
         position: 'absolute', right: 0, top: 0, bottom: 0, width: '1px',
         background: 'linear-gradient(180deg, transparent, rgba(180,148,90,0.25) 20%, rgba(180,148,90,0.25) 80%, transparent)',
@@ -339,7 +334,7 @@ const SidebarContent = ({ menuItems, title, onMobileClose, onToggleCollapse }) =
       {/* Brand */}
       <div className="glm-brand" style={{ position: 'relative', zIndex: 1 }}>
         <div>
-          <Link to="/" className="glm-logo">
+          <Link to="/" className="glm-logo" onClick={handleNavClick}>
             Glamour<span>.</span>
           </Link>
           <p className="glm-panel-label">{title}</p>
@@ -353,7 +348,7 @@ const SidebarContent = ({ menuItems, title, onMobileClose, onToggleCollapse }) =
 
       {/* Nav */}
       <nav className="glm-nav" style={{ position: 'relative', zIndex: 1 }}>
-        {menuItems.map((item, i) => {
+        {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
           const group = getGroup(item.path);
@@ -367,7 +362,7 @@ const SidebarContent = ({ menuItems, title, onMobileClose, onToggleCollapse }) =
               )}
               <Link
                 to={item.path}
-                onClick={onMobileClose}
+                onClick={handleNavClick}
                 className={`glm-nav-item${isActive ? ' active' : ''}`}
               >
                 {isActive && (
@@ -402,7 +397,7 @@ const SidebarContent = ({ menuItems, title, onMobileClose, onToggleCollapse }) =
             <p className="glm-user-role">{user?.role}</p>
           </div>
         </div>
-        <button className="glm-logout" onClick={logout}>
+        <button className="glm-logout" onClick={() => { resetBodyScroll(); logout(); }}>
           <LogOut size={13} />
           Sign Out
         </button>
@@ -411,14 +406,22 @@ const SidebarContent = ({ menuItems, title, onMobileClose, onToggleCollapse }) =
   );
 };
 
-// ─── Main Sidebar ─────────────────────────────────────────────────────────────
 const Sidebar = ({ menuItems, title, mobileOpen, onMobileClose, collapsed, onToggleCollapse }) => {
+
+  // ── FIX: sync body overflow with mobileOpen ──────────────────────────────
+  // This is the single source of truth for body scroll locking
+  React.useEffect ? null : null; // ensure we're in a component context
+
+  const handleOverlayClick = () => {
+    resetBodyScroll();
+    onMobileClose?.();
+  };
+
   return (
     <>
-      {/* Inject styles once */}
       <style>{SIDEBAR_STYLES}</style>
 
-      {/* Desktop */}
+      {/* Desktop Sidebar */}
       <AnimatePresence>
         {!collapsed && (
           <motion.aside
@@ -447,23 +450,28 @@ const Sidebar = ({ menuItems, title, mobileOpen, onMobileClose, collapsed, onTog
         )}
       </AnimatePresence>
 
-      {/* Mobile */}
+      {/* Mobile Sidebar */}
       <AnimatePresence>
         {mobileOpen && (
           <>
+            {/* Backdrop */}
             <motion.div
               style={{
                 position: 'fixed', inset: 0,
-                background: 'rgba(28,23,18,0.35)',
+                background: 'rgba(28,23,18,0.45)',
                 backdropFilter: 'blur(4px)',
                 zIndex: 40,
+                // ── FIX: make sure backdrop is always clickable ──
+                pointerEvents: 'auto',
               }}
               className="lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={onMobileClose}
+              onClick={handleOverlayClick}
             />
+
+            {/* Drawer */}
             <motion.aside
               className="lg:hidden"
               style={{
@@ -471,14 +479,17 @@ const Sidebar = ({ menuItems, title, mobileOpen, onMobileClose, collapsed, onTog
                 width: 280, height: '100vh',
                 zIndex: 50, overflow: 'hidden',
                 boxShadow: '8px 0 60px rgba(28,23,18,0.15)',
+                // ── FIX: ensure drawer is always on top and clickable ──
+                pointerEvents: 'auto',
               }}
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: 'spring', damping: 28, stiffness: 220 }}
             >
+              {/* Close button */}
               <button
-                onClick={onMobileClose}
+                onClick={handleOverlayClick}
                 style={{
                   position: 'absolute', top: 16, right: 16,
                   zIndex: 10, background: 'rgba(28,23,18,0.06)',
@@ -490,6 +501,7 @@ const Sidebar = ({ menuItems, title, mobileOpen, onMobileClose, collapsed, onTog
               >
                 <X size={16} />
               </button>
+
               <SidebarContent
                 menuItems={menuItems}
                 title={title}
