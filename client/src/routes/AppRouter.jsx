@@ -7,12 +7,13 @@ import StaffLayout from '@/layouts/StaffLayout';
 import CustomerLayout from '@/layouts/CustomerLayout';
 import FranchiseLayout from '@/layouts/FranchiseLayout';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import DomainResolver from '@/components/DomainResolver';
 
 import Home     from '@/pages/Home';
 import Login    from '@/pages/Login';
 import Register from '@/pages/Register';
 
-// ── Public booking pages (no auth) ───────────────────────────────────────────
+// ── Public booking pages (no auth) ──────────────────────────────────────────
 import SalonLanding       from '@/pages/public/SalonLanding';
 import PublicBookingFlow  from '@/pages/public/PublicBookingFlow';
 
@@ -89,100 +90,101 @@ const SmartHome = () => {
 const AppRouter = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Public */}
-        <Route element={<RootLayout />}>
-          <Route path="/" element={<SmartHome />} />
-        </Route>
-        <Route path="/login"    element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/setup"    element={<ProtectedRoute allowedRoles={['admin']}><SetupWizard /></ProtectedRoute>} />
+      <DomainResolver>
+        <Routes>
+          {/* Public */}
+          <Route element={<RootLayout />}>
+            <Route path="/" element={<SmartHome />} />
+          </Route>
+          <Route path="/login"    element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/setup"    element={<ProtectedRoute allowedRoles={['admin']}><SetupWizard /></ProtectedRoute>} />
 
-        {/* ── Super Admin ─────────────────────────────────────────────────── */}
-        <Route
-          path="/superadmin"
-          element={
-            <ProtectedRoute allowedRoles={['super_admin']}>
-              <SuperAdminLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index             element={<SuperAdminDashboard />} />
-          <Route path="salons"     element={<SuperAdminSalons />} />
-          <Route path="users"      element={<SuperAdminUsers />} />
-          <Route path="plans"      element={<SuperAdminPlans />} />
-          <Route path="franchises" element={<SuperAdminFranchises />} />
-          <Route path="analytics"  element={<SuperAdminAnalytics />} />
-          <Route path="whatsapp"   element={<SuperAdminWhatsApp />} />
-          <Route path="export"     element={<SuperAdminExport />} />
-          <Route path="security"   element={<SuperAdminSecurity />} />
-          <Route path="settings"   element={<SuperAdminSettings />} />
-        </Route>
+          {/* ── Super Admin ────────────────────────────────────────────────── */}
+          <Route
+            path="/superadmin"
+            element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <SuperAdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index             element={<SuperAdminDashboard />} />
+            <Route path="salons"     element={<SuperAdminSalons />} />
+            <Route path="users"      element={<SuperAdminUsers />} />
+            <Route path="plans"      element={<SuperAdminPlans />} />
+            <Route path="franchises" element={<SuperAdminFranchises />} />
+            <Route path="analytics"  element={<SuperAdminAnalytics />} />
+            <Route path="whatsapp"   element={<SuperAdminWhatsApp />} />
+            <Route path="export"     element={<SuperAdminExport />} />
+            <Route path="security"   element={<SuperAdminSecurity />} />
+            <Route path="settings"   element={<SuperAdminSettings />} />
+          </Route>
 
-        {/* ── Admin ───────────────────────────────────────────────────────── */}
-        <Route
-          path="/admin"
-          element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout /></ProtectedRoute>}
-        >
-          <Route index              element={<AdminDashboard />} />
-          <Route path="services"    element={<AdminServices />} />
-          <Route path="staff"       element={<AdminStaff />} />
-          <Route path="customers"   element={<AdminCustomers />} />
-          <Route path="appointments" element={<AdminBookings />} />
-          <Route path="attendance"  element={<AdminAttendance />} />
-          <Route path="inventory"   element={<AdminInventory />} />
-          <Route path="invoices"    element={<AdminInvoices />} />
-          <Route path="coupons"     element={<AdminCoupons />} />
-          <Route path="payments"    element={<AdminPayments />} />
-          <Route path="settings"    element={<AdminSettings />} />
-          <Route path="analytics"   element={<AdminAnalytics />} />
-        </Route>
+          {/* ── Admin ──────────────────────────────────────────────────────── */}
+          <Route
+            path="/admin"
+            element={<ProtectedRoute allowedRoles={['admin']}><AdminLayout /></ProtectedRoute>}
+          >
+            <Route index              element={<AdminDashboard />} />
+            <Route path="services"    element={<AdminServices />} />
+            <Route path="staff"       element={<AdminStaff />} />
+            <Route path="customers"   element={<AdminCustomers />} />
+            <Route path="appointments" element={<AdminBookings />} />
+            <Route path="attendance"  element={<AdminAttendance />} />
+            <Route path="inventory"   element={<AdminInventory />} />
+            <Route path="invoices"    element={<AdminInvoices />} />
+            <Route path="coupons"     element={<AdminCoupons />} />
+            <Route path="payments"    element={<AdminPayments />} />
+            <Route path="settings"    element={<AdminSettings />} />
+            <Route path="analytics"   element={<AdminAnalytics />} />
+          </Route>
 
-        {/* ── Staff / Receptionist ────────────────────────────────────────── */}
-        <Route
-          path="/staff"
-          element={<ProtectedRoute allowedRoles={['staff', 'receptionist']}><StaffLayout /></ProtectedRoute>}
-        >
-          <Route index element={<ReceptionistDashboard />} />
-          <Route path="appointments" element={<ReceptionistAppointments />} />
-          <Route path="customers"    element={<ReceptionistCustomers />} />
-          <Route path="inventory"    element={<ReceptionistInventory />} />
-          <Route path="team"         element={<ReceptionistStaff />} />
-          <Route path="cash"         element={<ReceptionistCash />} />
-          <Route path="reception"    element={<ProtectedRoute allowedRoles={['receptionist']}><ReceptionistPanel /></ProtectedRoute>} />
-        </Route>
+          {/* ── Staff / Receptionist ───────────────────────────────────────── */}
+          <Route
+            path="/staff"
+            element={<ProtectedRoute allowedRoles={['staff', 'receptionist']}><StaffLayout /></ProtectedRoute>}
+          >
+            <Route index element={<ReceptionistDashboard />} />
+            <Route path="appointments" element={<ReceptionistAppointments />} />
+            <Route path="customers"    element={<ReceptionistCustomers />} />
+            <Route path="inventory"    element={<ReceptionistInventory />} />
+            <Route path="team"         element={<ReceptionistStaff />} />
+            <Route path="cash"         element={<ReceptionistCash />} />
+            <Route path="reception"    element={<ProtectedRoute allowedRoles={['receptionist']}><ReceptionistPanel /></ProtectedRoute>} />
+          </Route>
 
-        {/* ── Customer ────────────────────────────────────────────────────── */}
-        <Route
-          path="/dashboard"
-          element={<ProtectedRoute allowedRoles={['customer']}><CustomerLayout /></ProtectedRoute>}
-        >
-          <Route index     element={<CustomerDashboard />} />
-          <Route path="book" element={<BookingFlow />} />
-        </Route>
+          {/* ── Customer ───────────────────────────────────────────────────── */}
+          <Route
+            path="/dashboard"
+            element={<ProtectedRoute allowedRoles={['customer']}><CustomerLayout /></ProtectedRoute>}
+          >
+            <Route index     element={<CustomerDashboard />} />
+            <Route path="book" element={<BookingFlow />} />
+          </Route>
 
-        {/* ── Franchise ───────────────────────────────────────────────────── */}
-        <Route
-          path="/franchise"
-          element={<ProtectedRoute allowedRoles={['franchise_owner', 'franchise_manager']}><FranchiseLayout /></ProtectedRoute>}
-        >
-          <Route index          element={<FranchiseDashboard />} />
-          <Route path="branches" element={<BranchList />} />
-          <Route path="analytics" element={<CrossAnalytics />} />
-          <Route path="managers"  element={<FranchiseManagers />} />
-          <Route path="whatsapp"  element={<WhatsAppHub />} />
-        </Route>
+          {/* ── Franchise ──────────────────────────────────────────────────── */}
+          <Route
+            path="/franchise"
+            element={<ProtectedRoute allowedRoles={['franchise_owner', 'franchise_manager']}><FranchiseLayout /></ProtectedRoute>}
+          >
+            <Route index          element={<FranchiseDashboard />} />
+            <Route path="branches" element={<BranchList />} />
+            <Route path="analytics" element={<CrossAnalytics />} />
+            <Route path="managers"  element={<FranchiseManagers />} />
+            <Route path="whatsapp"  element={<WhatsAppHub />} />
+          </Route>
 
-        {/* ── Public Booking (Phase 5) — no auth required ─────────────────── */}
-        <Route path="/book/:slug"             element={<SalonLanding />} />
-        <Route path="/book/:slug/appointment" element={<PublicBookingFlow />} />
+          {/* ── Public Booking — no auth required ─────────────────────────── */}
+          <Route path="/book/:slug"             element={<SalonLanding />} />
+          <Route path="/book/:slug/appointment" element={<PublicBookingFlow />} />
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </DomainResolver>
     </BrowserRouter>
   );
 };
-
 
 export default AppRouter;

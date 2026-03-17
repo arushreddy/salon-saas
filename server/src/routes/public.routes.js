@@ -3,18 +3,42 @@
 const express = require('express');
 const router  = express.Router();
 const { resolveTenant, planGuard } = require('../middlewares/tenant.middleware');
-const Service      = require('../models/Service');
-const Staff        = require('../models/Staff');
-const Salon        = require('../models/Salon');
+const Service       = require('../models/Service');
+const Staff         = require('../models/Staff');
+const Salon         = require('../models/Salon');
 const SalonSettings = require('../models/SalonSettings');
-const Booking      = require('../models/Booking');
-const User         = require('../models/User');
-const { AppError } = require('../middlewares/errorHandler');
+const Booking       = require('../models/Booking');
+const User          = require('../models/User');
+const { AppError }  = require('../middlewares/errorHandler');
 
-// All routes resolve tenant first
+// ── GET /api/public/resolve-domain ─────────────────────────────────────────
+// Called by frontend when visitor is on a custom domain like royalsalon.com
+// Does NOT need resolveTenant middleware — this IS the resolver
+router.get('/resolve-domain', async (req, res, next) => {
+  try {
+    const { domain } = req.query;
+    if (!domain) throw new AppError('domain is required', 400);
+
+    const cleanDomain = domain.replace(/^www\./, '').toLowerCase().trim();
+
+    const salon = await Salon.findOne({
+      customDomain: cleanDomain,
+      isActive: true,
+      isSuspended: false,
+    }).select('slug').lean();
+
+    if (!salon) {
+      return res.json({ success: false, slug: null, message: 'Domain not mapped to any salon' });
+    }
+
+    res.json({ success: true, slug: salon.slug });
+  } catch (e) { next(e); }
+});
+
+// All routes below resolve tenant first
 router.use(resolveTenant);
 
-// ── GET /api/public/salon-info ─────────────────────────────────────────────
+// ── GET /api/public/salon-info ───────────────────────────────────────────────
 router.get('/salon-info', async (req, res, next) => {
   try {
     const [salon, settings] = await Promise.all([
@@ -39,7 +63,6 @@ router.get('/salon-info', async (req, res, next) => {
         slug:        salon.slug,
         features:    salon.features,
         plan:        salon.plan,
-        // Website customization
         theme: {
           primaryColor:   pw.primaryColor   || '#B8860B',
           secondaryColor: pw.secondaryColor || '#1A1208',
@@ -66,7 +89,7 @@ router.get('/salon-info', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── GET /api/public/services ───────────────────────────────────────────────
+// ── GET /api/public/services ─────────────────────────────────────────────────
 router.get('/services', planGuard('onlineBooking'), async (req, res, next) => {
   try {
     const services = await Service.find({ salonId: req.salonId, isActive: true })
@@ -77,7 +100,7 @@ router.get('/services', planGuard('onlineBooking'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── GET /api/public/staff ──────────────────────────────────────────────────
+// ── GET /api/public/staff ────────────────────────────────────────────────────
 router.get('/staff', planGuard('onlineBooking'), async (req, res, next) => {
   try {
     const staff = await Staff.find({ salonId: req.salonId, isActive: true })
@@ -87,7 +110,7 @@ router.get('/staff', planGuard('onlineBooking'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── GET /api/public/timeslots ──────────────────────────────────────────────
+// ── GET /api/public/timeslots ────────────────────────────────────────────────
 router.get('/timeslots', planGuard('onlineBooking'), async (req, res, next) => {
   try {
     const { date, serviceId, staffId } = req.query;
@@ -96,7 +119,6 @@ router.get('/timeslots', planGuard('onlineBooking'), async (req, res, next) => {
     const service = await Service.findOne({ _id: serviceId, salonId: req.salonId }).lean();
     if (!service) throw new AppError('Service not found', 404);
 
-    // Check operating hours
     const settings = await SalonSettings.findOne({ salonId: req.salonId })
       .select('operatingHours weeklySchedule')
       .lean();
@@ -126,7 +148,6 @@ router.get('/timeslots', planGuard('onlineBooking'), async (req, res, next) => {
     const staffCount = await Staff.countDocuments({ salonId: req.salonId, isActive: true });
     const maxPerSlot = staffId ? 1 : Math.max(1, staffCount);
 
-    // Generate slots from open to close time in 30-min increments
     const allSlots = [];
     const [oh, om] = openTime.split(':').map(Number);
     const [ch, cm] = closeTime.split(':').map(Number);
@@ -165,7 +186,7 @@ router.get('/timeslots', planGuard('onlineBooking'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── POST /api/public/book ──────────────────────────────────────────────────
+// ── POST /api/public/book ────────────────────────────────────────────────────
 router.post('/book', planGuard('onlineBooking'), async (req, res, next) => {
   try {
     const { serviceId, staffId, date, timeSlot, customerName, customerPhone, customerEmail, notes } = req.body;
@@ -178,7 +199,6 @@ router.post('/book', planGuard('onlineBooking'), async (req, res, next) => {
 
     const normalPhone = customerPhone.replace(/\D/g, '').replace(/^91(\d{10})$/, '$1');
 
-    // Find or create customer
     let customer = await User.findOne({ phone: normalPhone, salonId: req.salonId, role: 'customer' });
     if (!customer) {
       customer = await User.create({
@@ -191,7 +211,6 @@ router.post('/book', planGuard('onlineBooking'), async (req, res, next) => {
         isActive: true,
       });
     } else {
-      // Update name/email if changed
       if (customer.name !== customerName || (customerEmail && !customer.email?.includes('@booking.temp'))) {
         customer.name  = customerName;
         if (customerEmail) customer.email = customerEmail;
@@ -250,7 +269,7 @@ router.post('/book', planGuard('onlineBooking'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── GET /api/public/bookings ───────────────────────────────────────────────
+// ── GET /api/public/bookings ─────────────────────────────────────────────────
 router.get('/bookings', planGuard('onlineBooking'), async (req, res, next) => {
   try {
     const { phone, refNo } = req.query;
@@ -277,9 +296,7 @@ router.get('/bookings', planGuard('onlineBooking'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── GET /api/public/widget.js ──────────────────────────────────────────────
-// Embed widget script — salons paste one <script> tag on their website
-// Auto-detects their domain, shows a floating Book Now button
+// ── GET /api/public/widget.js ────────────────────────────────────────────────
 router.get('/widget.js', async (req, res, next) => {
   try {
     const slug = req.query.salon || req.headers['x-salon-slug'];
@@ -288,7 +305,6 @@ router.get('/widget.js', async (req, res, next) => {
       return res.send(`console.error('[Glamour Widget] Missing salon parameter. Use: ?salon=your-slug');`);
     }
 
-    // Get salon settings for widget customization
     const salon = await Salon.findOne({ slug, isActive: true }).lean();
     if (!salon) {
       res.type('application/javascript');
@@ -310,7 +326,6 @@ router.get('/widget.js', async (req, res, next) => {
       ? 'bottom:24px;left:24px;'
       : 'bottom:24px;right:24px;';
 
-    // The widget JS — injects a floating button + iframe modal
     const widgetJS = `
 (function() {
   if (window.__GlamourWidget) return;
@@ -321,7 +336,6 @@ router.get('/widget.js', async (req, res, next) => {
   var SALON_NAME  = '${salonName.replace(/'/g, "\\'")}';
   var BTN_TEXT    = '${buttonText.replace(/'/g, "\\'")}';
 
-  // Inject styles
   var style = document.createElement('style');
   style.innerHTML = [
     '.glm-btn{position:fixed;${posStyle}z-index:99999;background:' + PRIMARY + ';color:#1A1208;border:none;',
@@ -340,13 +354,11 @@ router.get('/widget.js', async (req, res, next) => {
   ].join('');
   document.head.appendChild(style);
 
-  // Create button
   var btn = document.createElement('button');
   btn.className = 'glm-btn';
   btn.innerHTML = '&#9986; ' + BTN_TEXT;
   btn.title = 'Book at ' + SALON_NAME;
 
-  // Create overlay + modal
   var overlay = document.createElement('div');
   overlay.className = 'glm-overlay';
 
@@ -387,7 +399,6 @@ router.get('/widget.js', async (req, res, next) => {
   overlay.addEventListener('click', function(e) { if (e.target === overlay) closeWidget(); });
   document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && isOpen) closeWidget(); });
 
-  // Expose API so devs can trigger programmatically
   window.GlamourBooking = { open: openWidget, close: closeWidget };
 })();
 `;
