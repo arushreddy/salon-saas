@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   Store, Phone, Mail, MapPin, Clock, CreditCard,
   Scissors, Users, Tag, Bell, FileText, Shield,
@@ -7,13 +8,10 @@ import {
   Eye, EyeOff, ToggleLeft, ToggleRight, Plus, Trash2,
   Percent, DollarSign, Zap, Globe, Hash, Star,
   Settings, RefreshCw, Copy, Check, Info, X,
-  ChevronDown, ChevronUp, Package, Award,
+  ChevronDown, ChevronUp, Package, Award, Palette,
 } from 'lucide-react';
 import api from '@/services/api';
 
-/* ═══════════════════════════════════════════════════════
-   DESIGN TOKENS — cream / gold / dark ink (matches system)
-   ═══════════════════════════════════════════════════════ */
 const C = {
   bg:         '#F8F3EA',
   card:       '#FDFAF4',
@@ -50,12 +48,9 @@ const C = {
 
 const ease = [0.22, 0.61, 0.36, 1];
 const fd   = { hidden:{opacity:0,y:10}, show:{opacity:1,y:0,transition:{duration:0.28,ease}} };
-const sl   = { hidden:{x:40,opacity:0}, show:{x:0,opacity:1,transition:{type:'spring',damping:28,stiffness:300}} };
 
-/* ── BroadcastChannel — push settings changes to all open tabs instantly ── */
 const SETTINGS_CHANNEL = 'glamour_settings_sync';
 
-/* ── Global settings cache — other panels import this ── */
 export const SettingsCache = {
   _data: null,
   _listeners: [],
@@ -64,26 +59,21 @@ export const SettingsCache = {
   subscribe: (fn) => { SettingsCache._listeners.push(fn); return () => { SettingsCache._listeners = SettingsCache._listeners.filter(x => x !== fn); }; },
 };
 
-/* ── useSettings hook — usable by any panel for live settings ── */
 export function useSettings() {
   const [s, setS] = useState(SettingsCache.get());
   useEffect(() => {
     const unsub = SettingsCache.subscribe(setS);
     if (!SettingsCache.get()) {
-      api.get('/settings').then(r => {
-        SettingsCache.set(r.data.settings);
-      }).catch(() => {});
+      api.get('/settings').then(r => { SettingsCache.set(r.data.settings); }).catch(() => {});
     }
     return unsub;
   }, []);
   return s;
 }
 
-/* ── Helpers ─────────────────────────────────────────── */
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 const DAY_LABELS = { monday:'Mon', tuesday:'Tue', wednesday:'Wed', thursday:'Thu', friday:'Fri', saturday:'Sat', sunday:'Sun' };
 
-/* ── Atoms ───────────────────────────────────────────── */
 function SectionCard({ icon:Icon, title, subtitle, color=C.gold, children, id, badge }) {
   return (
     <motion.div variants={fd} id={id}
@@ -193,7 +183,6 @@ function PasswordInp({ value, onChange, placeholder }) {
   );
 }
 
-/* ── Toast ───────────────────────────────────────────── */
 function Toast({msg,type='ok'}) {
   return (
     <motion.div initial={{opacity:0,y:24,scale:0.92}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:16,scale:0.95}}
@@ -204,7 +193,6 @@ function Toast({msg,type='ok'}) {
   );
 }
 
-/* ── Nav sidebar ─────────────────────────────────────── */
 const NAV_SECTIONS = [
   { id:'identity',  icon:Store,       label:'Salon Identity'    },
   { id:'hours',     icon:Clock,       label:'Business Hours'    },
@@ -216,11 +204,9 @@ const NAV_SECTIONS = [
   { id:'inventory', icon:Package,     label:'Inventory Alerts'  },
   { id:'messages',  icon:Bell,        label:'Message Templates' },
   { id:'security',  icon:Shield,      label:'Security'          },
+  { id:'receipt',   icon:Palette,     label:'Receipt Designer'  },
 ];
 
-/* ═══════════════════════════════════════════════════════
-   DEEP CLONE / SET by path helper
-   ═══════════════════════════════════════════════════════ */
 function deepSet(obj, path, value) {
   const parts  = path.split('.');
   const result = JSON.parse(JSON.stringify(obj));
@@ -233,9 +219,6 @@ function deepSet(obj, path, value) {
   return result;
 }
 
-/* ═══════════════════════════════════════════════════════
-   MAIN PAGE
-   ═══════════════════════════════════════════════════════ */
 export default function AdminSettings() {
   const [settings,  setSettings]  = useState(null);
   const [original,  setOriginal]  = useState(null);
@@ -245,10 +228,10 @@ export default function AdminSettings() {
   const [active,    setActive]    = useState('identity');
   const [copied,    setCopied]    = useState('');
   const channelRef  = useRef(null);
+  const navigate    = useNavigate();
 
   const flash = (msg,type='ok') => { setToast({msg,type}); setTimeout(()=>setToast(null),3000); };
 
-  /* ── Load ── */
   const loadSettings = useCallback(async () => {
     try {
       const {data} = await api.get('/settings');
@@ -261,7 +244,6 @@ export default function AdminSettings() {
 
   useEffect(()=>{ loadSettings(); },[loadSettings]);
 
-  /* ── BroadcastChannel setup ── */
   useEffect(()=>{
     try {
       channelRef.current = new BroadcastChannel(SETTINGS_CHANNEL);
@@ -272,12 +254,10 @@ export default function AdminSettings() {
 
   const dirty = settings ? JSON.stringify(settings) !== original : false;
 
-  /* ── Field updater ── */
   const upd = (path, value) => setSettings(prev => deepSet(prev, path, value));
   const set = path => e => upd(path, e.target.type==='checkbox'?e.target.checked:e.target.value);
   const tog = path => val => upd(path, val);
 
-  /* ── Save ── */
   const save = async () => {
     setSaving(true);
     try {
@@ -285,7 +265,6 @@ export default function AdminSettings() {
       setOriginal(JSON.stringify(data.settings));
       setSettings(data.settings);
       SettingsCache.set(data.settings);
-      // Broadcast to all open tabs/windows instantly
       try { channelRef.current?.postMessage({type:'updated',ts:Date.now()}); } catch {}
       flash('Settings saved — all panels updated ✓');
     } catch(e) { flash(e.response?.data?.message||'Save failed','err'); }
@@ -294,8 +273,8 @@ export default function AdminSettings() {
 
   const copyVal = (val, key) => { navigator.clipboard.writeText(val); setCopied(key); setTimeout(()=>setCopied(''),1800); };
 
-  /* ── Scroll to section ── */
   const scrollTo = id => {
+    if (id === 'receipt') { navigate('/admin/receipt-designer'); return; }
     setActive(id);
     document.getElementById('section-'+id)?.scrollIntoView({behavior:'smooth',block:'start'});
   };
@@ -323,7 +302,7 @@ export default function AdminSettings() {
 
       <div style={{fontFamily:"'DM Sans',sans-serif",maxWidth:1160,margin:'0 auto',paddingBottom:80}}>
 
-        {/* ── HERO ── */}
+        {/* HERO */}
         <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{duration:0.3,ease}}
           style={{borderRadius:22,overflow:'hidden',marginBottom:24,background:`linear-gradient(135deg,${C.heroBg},${C.heroBg2})`,border:'1px solid rgba(184,134,11,.15)',boxShadow:'0 20px 60px rgba(0,0,0,.22)',position:'relative'}}>
           <div style={{position:'absolute',inset:0,backgroundImage:`repeating-linear-gradient(45deg,#B8860B 0,#B8860B 1px,transparent 0,transparent 50%)`,backgroundSize:'20px 20px',opacity:.04}}/>
@@ -357,7 +336,6 @@ export default function AdminSettings() {
             </div>
           </div>
 
-          {/* Quick identity strip */}
           <div style={{padding:'0 36px 20px',display:'flex',gap:24,flexWrap:'wrap'}}>
             {[
               {l:'Salon Name', v:settings.salonName,  k:'name'},
@@ -378,7 +356,6 @@ export default function AdminSettings() {
           </div>
         </motion.div>
 
-        {/* ── LAYOUT: sticky nav + content ── */}
         <div style={{display:'flex',gap:20,alignItems:'flex-start'}}>
 
           {/* Sticky Nav */}
@@ -386,15 +363,33 @@ export default function AdminSettings() {
             <div style={{background:C.card,borderRadius:18,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:`0 4px 20px rgba(0,0,0,.04)`}}>
               {NAV_SECTIONS.map(({id,icon:Icon,label},i)=>(
                 <button key={id} onClick={()=>scrollTo(id)}
-                  style={{width:'100%',padding:'11px 16px',background:active===id?`linear-gradient(135deg,${C.goldPale},${C.cream})`:'transparent',border:'none',borderBottom:i<NAV_SECTIONS.length-1?`1px solid ${active===id?C.borderMid:C.border}`:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:10,textAlign:'left',transition:'all 0.15s'}}>
-                  <div style={{width:30,height:30,borderRadius:9,background:active===id?`${C.gold}18`:`${C.inkGhost}12`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <Icon size={13} style={{color:active===id?C.gold:C.inkLight}}/>
+                  style={{width:'100%',padding:'11px 16px',background:id==='receipt'?`linear-gradient(135deg,${C.goldPale},${C.cream})`:active===id?`linear-gradient(135deg,${C.goldPale},${C.cream})`:'transparent',border:'none',borderBottom:i<NAV_SECTIONS.length-1?`1px solid ${active===id?C.borderMid:C.border}`:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:10,textAlign:'left',transition:'all 0.15s'}}>
+                  <div style={{width:30,height:30,borderRadius:9,background:id==='receipt'?`${C.gold}18`:active===id?`${C.gold}18`:`${C.inkGhost}12`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <Icon size={13} style={{color:id==='receipt'?C.gold:active===id?C.gold:C.inkLight}}/>
                   </div>
-                  <span style={{fontSize:12,fontWeight:active===id?800:600,color:active===id?C.gold:C.inkLight,lineHeight:1.2}}>{label}</span>
-                  {active===id&&<ChevronRight size={11} style={{color:C.gold,marginLeft:'auto'}}/>}
+                  <span style={{fontSize:12,fontWeight:id==='receipt'?800:active===id?800:600,color:id==='receipt'?C.gold:active===id?C.gold:C.inkLight,lineHeight:1.2}}>{label}</span>
+                  {(active===id||id==='receipt')&&<ChevronRight size={11} style={{color:C.gold,marginLeft:'auto'}}/>}
                 </button>
               ))}
             </div>
+
+            {/* Receipt Designer banner */}
+            <motion.div
+              whileHover={{ y: -2 }}
+              onClick={() => navigate('/admin/receipt-designer')}
+              style={{ marginTop: 12, padding: '14px 16px', borderRadius: 14, background: `linear-gradient(135deg, ${C.heroBg}, ${C.heroBg2})`, border: '1px solid rgba(184,134,11,0.2)', cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <Palette size={14} color={C.goldLight} />
+                <span style={{ fontSize: 12, fontWeight: 800, color: C.goldLight }}>Receipt Designer</span>
+              </div>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: 0, lineHeight: 1.5 }}>
+                Customize colors, fonts & layout for your printed receipts
+              </p>
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: C.gold }}>
+                Open Designer <ChevronRight size={11} />
+              </div>
+            </motion.div>
+
             {dirty&&(
               <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} style={{marginTop:12}}>
                 <button onClick={save} disabled={saving}
@@ -414,7 +409,7 @@ export default function AdminSettings() {
           <div style={{flex:1,minWidth:0}}>
             <motion.div initial="hidden" animate="show" variants={{hidden:{},show:{transition:{staggerChildren:0.05}}}}>
 
-              {/* ── SALON IDENTITY ── */}
+              {/* SALON IDENTITY */}
               <SectionCard icon={Store} title="Salon Identity" id="section-identity" color={C.gold}
                 subtitle="This name appears on receipts, WhatsApp messages and all panels">
                 <div style={{display:'flex',flexWrap:'wrap',gap:16}}>
@@ -443,13 +438,12 @@ export default function AdminSettings() {
                   </Field>
                 </div>
 
-                {/* Multiple Phone Numbers */}
-                <Field label="Additional Phone Numbers" hint="All numbers appear on receipts (e.g. WhatsApp line, booking line)">
+                <Field label="Additional Phone Numbers" hint="All numbers appear on receipts">
                   <div style={{display:'flex',flexDirection:'column',gap:8}}>
                     {(settings.phoneNumbers||[]).map((ph,idx)=>(
                       <div key={idx} style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:8,alignItems:'center'}}>
                         <Inp value={ph.number||''} onChange={e=>{const arr=[...(settings.phoneNumbers||[])];arr[idx]={...arr[idx],number:e.target.value};upd('phoneNumbers',arr);}} placeholder="98765 43210"/>
-                        <Inp value={ph.label||''} onChange={e=>{const arr=[...(settings.phoneNumbers||[])];arr[idx]={...arr[idx],label:e.target.value};upd('phoneNumbers',arr);}} placeholder="Label (e.g. WhatsApp, Booking)"/>
+                        <Inp value={ph.label||''} onChange={e=>{const arr=[...(settings.phoneNumbers||[])];arr[idx]={...arr[idx],label:e.target.value};upd('phoneNumbers',arr);}} placeholder="Label (e.g. WhatsApp)"/>
                         <button onClick={()=>{const arr=(settings.phoneNumbers||[]).filter((_,i)=>i!==idx);upd('phoneNumbers',arr);}}
                           style={{width:34,height:38,borderRadius:10,border:`1px solid ${C.riskBdr}`,background:C.riskPale,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                           <X size={13} color={C.risk}/>
@@ -463,70 +457,45 @@ export default function AdminSettings() {
                   </div>
                 </Field>
 
-                {/* Address */}
                 <div style={{marginTop:4,padding:'16px',borderRadius:14,background:C.bg,border:`1px solid ${C.border}`}}>
                   <p style={{fontSize:11,fontWeight:800,color:C.inkLight,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:14,display:'flex',alignItems:'center',gap:7}}>
                     <MapPin size={12} style={{color:C.gold}}/> Salon Address
                   </p>
                   <div style={{display:'flex',flexWrap:'wrap',gap:12}}>
-                    <Field label="Street / Area" half>
-                      <Inp value={addr.street} onChange={set('address.street')} placeholder="123 MG Road, Banjara Hills"/>
-                    </Field>
-                    <Field label="City" half>
-                      <Inp value={addr.city} onChange={set('address.city')} placeholder="Hyderabad"/>
-                    </Field>
-                    <Field label="State" half>
-                      <Inp value={addr.state} onChange={set('address.state')} placeholder="Telangana"/>
-                    </Field>
-                    <Field label="Pincode" half>
-                      <Inp value={addr.pincode} onChange={set('address.pincode')} placeholder="500034"/>
-                    </Field>
+                    <Field label="Street / Area" half><Inp value={addr.street} onChange={set('address.street')} placeholder="123 MG Road"/></Field>
+                    <Field label="City" half><Inp value={addr.city} onChange={set('address.city')} placeholder="Hyderabad"/></Field>
+                    <Field label="State" half><Inp value={addr.state} onChange={set('address.state')} placeholder="Telangana"/></Field>
+                    <Field label="Pincode" half><Inp value={addr.pincode} onChange={set('address.pincode')} placeholder="500034"/></Field>
                   </div>
                 </div>
               </SectionCard>
 
-              {/* ── BUSINESS HOURS ── */}
+              {/* BUSINESS HOURS */}
               <SectionCard icon={Clock} title="Business Hours" id="section-hours" color="#0F766E"
                 subtitle="Controls booking availability shown to customers">
                 <div style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:16}}>
-                  <Field label="Default Open Time" half>
-                    <Inp type="time" value={ops.openTime} onChange={set('operatingHours.openTime')}/>
-                  </Field>
-                  <Field label="Default Close Time" half>
-                    <Inp type="time" value={ops.closeTime} onChange={set('operatingHours.closeTime')}/>
-                  </Field>
+                  <Field label="Default Open Time" half><Inp type="time" value={ops.openTime} onChange={set('operatingHours.openTime')}/></Field>
+                  <Field label="Default Close Time" half><Inp type="time" value={ops.closeTime} onChange={set('operatingHours.closeTime')}/></Field>
                   <Field label="Slot Duration" half hint="Minutes per booking slot">
                     <Select value={ops.slotInterval||30} onChange={set('operatingHours.slotInterval')}
                       options={[['15','15 min'],['20','20 min'],['30','30 min'],['45','45 min'],['60','1 hour'],['90','1.5 hours']]}/>
                   </Field>
-                  <Field label="Break / Lunch Start" half>
-                    <Inp type="time" value={ops.breakStart} onChange={set('operatingHours.breakStart')} placeholder="Optional"/>
-                  </Field>
-                  <Field label="Break End" half>
-                    <Inp type="time" value={ops.breakEnd} onChange={set('operatingHours.breakEnd')} placeholder="Optional"/>
-                  </Field>
+                  <Field label="Break Start" half><Inp type="time" value={ops.breakStart} onChange={set('operatingHours.breakStart')} placeholder="Optional"/></Field>
+                  <Field label="Break End" half><Inp type="time" value={ops.breakEnd} onChange={set('operatingHours.breakEnd')} placeholder="Optional"/></Field>
                 </div>
-
-                {/* Weekly schedule */}
                 <p style={{fontSize:11,fontWeight:800,color:C.inkLight,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:12}}>Weekly Schedule</p>
                 <div style={{display:'flex',flexDirection:'column',gap:8}}>
                   {DAYS.map(d=>{
                     const day = ws[d]||{isOpen:true,open:'09:00',close:'21:00'};
                     return (
                       <div key={d} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:11,background:day.isOpen?'#fff':C.bg,border:`1px solid ${day.isOpen?C.borderMid:C.border}`,transition:'all 0.15s'}}>
-                        <div style={{width:48,flexShrink:0}}>
-                          <span style={{fontSize:12,fontWeight:700,color:day.isOpen?C.ink:C.inkGhost}}>{DAY_LABELS[d]}</span>
-                        </div>
+                        <div style={{width:48,flexShrink:0}}><span style={{fontSize:12,fontWeight:700,color:day.isOpen?C.ink:C.inkGhost}}>{DAY_LABELS[d]}</span></div>
                         <button onClick={()=>upd(`weeklySchedule.${d}.isOpen`,!day.isOpen)}
                           style={{width:38,height:22,borderRadius:100,border:'none',background:day.isOpen?C.ok:'#D1D5DB',position:'relative',cursor:'pointer',flexShrink:0,transition:'background 0.2s'}}>
                           <div style={{width:16,height:16,borderRadius:'50%',background:'#fff',position:'absolute',top:3,left:day.isOpen?19:3,transition:'left 0.2s',boxShadow:'0 1px 3px rgba(0,0,0,.2)'}}/>
                         </button>
                         {day.isOpen ? (
-                          <>
-                            <Inp type="time" value={day.open} onChange={e=>upd(`weeklySchedule.${d}.open`,e.target.value)} style={{width:110,flex:'none'}}/>
-                            <span style={{fontSize:12,color:C.inkGhost}}>to</span>
-                            <Inp type="time" value={day.close} onChange={e=>upd(`weeklySchedule.${d}.close`,e.target.value)} style={{width:110,flex:'none'}}/>
-                          </>
+                          <><Inp type="time" value={day.open} onChange={e=>upd(`weeklySchedule.${d}.open`,e.target.value)} style={{width:110,flex:'none'}}/><span style={{fontSize:12,color:C.inkGhost}}>to</span><Inp type="time" value={day.close} onChange={e=>upd(`weeklySchedule.${d}.close`,e.target.value)} style={{width:110,flex:'none'}}/></>
                         ) : (
                           <span style={{fontSize:12,color:C.inkGhost,fontStyle:'italic'}}>Closed</span>
                         )}
@@ -536,22 +505,14 @@ export default function AdminSettings() {
                 </div>
               </SectionCard>
 
-              {/* ── BOOKING RULES ── */}
-              <SectionCard icon={Tag} title="Booking Rules" id="section-booking" color={C.blue}
-                subtitle="Controls how customers can book appointments">
+              {/* BOOKING RULES */}
+              <SectionCard icon={Tag} title="Booking Rules" id="section-booking" color={C.blue}>
                 <div style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:16}}>
-                  <Field label="Advance Booking (days)" half hint="How far in advance customers can book">
-                    <Inp type="number" value={settings.maxAdvanceBookingDays||30} onChange={set('maxAdvanceBookingDays')} placeholder="30"/>
-                  </Field>
-                  <Field label="Max Cancellation Hours" half hint="Last-minute cancellation cutoff">
-                    <Inp type="number" value={settings.cancellationHours||2} onChange={set('cancellationHours')} placeholder="2"/>
-                  </Field>
-                  <Field label="Max Bookings per Slot" half hint="Concurrent bookings allowed">
-                    <Inp type="number" value={settings.maxBookingsPerSlot||1} onChange={set('maxBookingsPerSlot')} placeholder="1"/>
-                  </Field>
+                  <Field label="Advance Booking (days)" half><Inp type="number" value={settings.maxAdvanceBookingDays||30} onChange={set('maxAdvanceBookingDays')} placeholder="30"/></Field>
+                  <Field label="Max Cancellation Hours" half><Inp type="number" value={settings.cancellationHours||2} onChange={set('cancellationHours')} placeholder="2"/></Field>
+                  <Field label="Max Bookings per Slot" half><Inp type="number" value={settings.maxBookingsPerSlot||1} onChange={set('maxBookingsPerSlot')} placeholder="1"/></Field>
                   <Field label="Booking Confirmation" half>
-                    <Select value={settings.bookingConfirmMode||'auto'} onChange={set('bookingConfirmMode')}
-                      options={[['auto','Auto Confirm'],['manual','Manual Approval']]}/>
+                    <Select value={settings.bookingConfirmMode||'auto'} onChange={set('bookingConfirmMode')} options={[['auto','Auto Confirm'],['manual','Manual Approval']]}/>
                   </Field>
                 </div>
                 <Toggle value={settings.walkInEnabled!==false} onChange={tog('walkInEnabled')} label="Allow Walk-in Bookings" sub="Receptionist can add walk-in customers"/>
@@ -559,14 +520,13 @@ export default function AdminSettings() {
                 <Toggle value={settings.requirePhoneVerify||false} onChange={tog('requirePhoneVerify')} label="Require Phone Verification" sub="OTP before booking confirmation"/>
               </SectionCard>
 
-              {/* ── PAYMENTS ── */}
-              <SectionCard icon={CreditCard} title="Payments & Gateway" id="section-payments" color={C.gold}
-                badge="Secure">
+              {/* PAYMENTS */}
+              <SectionCard icon={CreditCard} title="Payments & Gateway" id="section-payments" color={C.gold} badge="Secure">
                 <div style={{marginBottom:16}}>
                   <p style={{fontSize:11,fontWeight:800,color:C.inkLight,textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:12}}>Accepted Methods</p>
                   <Toggle value={pay.acceptCash!==false} onChange={v=>upd('payment.acceptCash',v)} label="Cash" sub="Accept cash payments at counter" color={C.ok}/>
-                  <Toggle value={pay.acceptUPI!==false}  onChange={v=>upd('payment.acceptUPI',v)}  label="UPI" sub="GPay, PhonePe, Paytm etc." color={C.blue}/>
-                  <Toggle value={pay.acceptCard!==false} onChange={v=>upd('payment.acceptCard',v)} label="Card" sub="Debit / Credit card" color="#6D28D9}"/>
+                  <Toggle value={pay.acceptUPI!==false} onChange={v=>upd('payment.acceptUPI',v)} label="UPI" sub="GPay, PhonePe, Paytm etc." color={C.blue}/>
+                  <Toggle value={pay.acceptCard!==false} onChange={v=>upd('payment.acceptCard',v)} label="Card" sub="Debit / Credit card" color="#6D28D9"/>
                 </div>
                 <Field label="UPI ID / VPA" hint="Shown to customer for manual UPI transfer">
                   <Inp value={settings.upiId} onChange={set('upiId')} placeholder="glamour@paytm"/>
@@ -578,156 +538,126 @@ export default function AdminSettings() {
                   <Toggle value={pay.razorpayEnabled||false} onChange={v=>upd('payment.razorpayEnabled',v)} label="Enable Razorpay" sub="Online payment via card/UPI/netbanking"/>
                   {pay.razorpayEnabled && (
                     <div style={{marginTop:12,display:'flex',flexWrap:'wrap',gap:12}}>
-                      <Field label="Key ID" half>
-                        <Inp value={pay.razorpayKeyId} onChange={e=>upd('payment.razorpayKeyId',e.target.value)} placeholder="rzp_live_…"/>
-                      </Field>
-                      <Field label="Key Secret" half hint="Stored encrypted — shown as ••••">
-                        <PasswordInp value={pay.razorpayKeySecret} onChange={e=>upd('payment.razorpayKeySecret',e.target.value)} placeholder="Enter secret…"/>
-                      </Field>
+                      <Field label="Key ID" half><Inp value={pay.razorpayKeyId} onChange={e=>upd('payment.razorpayKeyId',e.target.value)} placeholder="rzp_live_…"/></Field>
+                      <Field label="Key Secret" half hint="Stored encrypted"><PasswordInp value={pay.razorpayKeySecret} onChange={e=>upd('payment.razorpayKeySecret',e.target.value)} placeholder="Enter secret…"/></Field>
                     </div>
                   )}
                 </div>
                 <Toggle value={pay.payAtSalonEnabled!==false} onChange={v=>upd('payment.payAtSalonEnabled',v)} label="Pay at Salon Option" sub="Allow 'Pay later at salon' for online bookings" color={C.warn}/>
               </SectionCard>
 
-              {/* ── BILLING & TAX ── */}
+              {/* BILLING & TAX */}
               <SectionCard icon={FileText} title="Billing & Tax" id="section-billing" color="#0F766E"
                 subtitle="Controls receipts, invoices, discounts and GST">
                 <div style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:16}}>
-                  <Field label="Tax Rate (%)" half hint="Applied to all services unless overridden">
-                    <Inp type="number" value={settings.taxRate||18} onChange={set('taxRate')} placeholder="18" min="0" max="30"/>
-                  </Field>
-                  <Field label="GST Number" half hint="Printed on tax invoices">
-                    <Inp value={settings.gstNumber} onChange={set('gstNumber')} placeholder="22AAAAA0000A1Z5"/>
-                  </Field>
-                  <Field label="Max Discount (%)" half hint="Receptionist cannot exceed this discount">
-                    <Inp type="number" value={bil.maxDiscountPercent||10} onChange={e=>upd('billing.maxDiscountPercent',Number(e.target.value))} placeholder="10" min="0" max="100"/>
-                  </Field>
-                  <Field label="Loyalty Points per ₹100" half hint="Points earned per ₹100 spent">
-                    <Inp type="number" value={bil.loyaltyPointsPerRupee||1} onChange={e=>upd('billing.loyaltyPointsPerRupee',Number(e.target.value))} placeholder="1"/>
-                  </Field>
+                  <Field label="Tax Rate (%)" half><Inp type="number" value={settings.taxRate||18} onChange={set('taxRate')} placeholder="18" min="0" max="30"/></Field>
+                  <Field label="GST Number" half><Inp value={settings.gstNumber} onChange={set('gstNumber')} placeholder="22AAAAA0000A1Z5"/></Field>
+                  <Field label="Max Discount (%)" half><Inp type="number" value={bil.maxDiscountPercent||10} onChange={e=>upd('billing.maxDiscountPercent',Number(e.target.value))} placeholder="10" min="0" max="100"/></Field>
+                  <Field label="Loyalty Points per ₹100" half><Inp type="number" value={bil.loyaltyPointsPerRupee||1} onChange={e=>upd('billing.loyaltyPointsPerRupee',Number(e.target.value))} placeholder="1"/></Field>
                 </div>
                 <Toggle value={bil.allowStaffDiscount!==false} onChange={v=>upd('billing.allowStaffDiscount',v)} label="Allow Staff Discounts" sub="Staff can apply manual discount during payment" color={C.warn}/>
                 <Toggle value={settings.showGSTOnReceipt!==false} onChange={tog('showGSTOnReceipt')} label="Show GST on Receipt" sub="Display tax breakdown on printed receipts"/>
                 <Toggle value={settings.printReceiptAuto||false} onChange={tog('printReceiptAuto')} label="Auto Print Receipt" sub="Trigger print dialog after every payment"/>
-
-                {/* Receipt custom text */}
                 <div style={{marginTop:14}}>
-                  <Field label="Receipt Header Note" hint="Appears at top of every receipt (e.g. Thank you for visiting!)">
-                    <TextArea value={settings.receiptHeader} onChange={set('receiptHeader')} placeholder="Welcome to Glamour Salon — Your beauty is our priority" rows={2}/>
+                  <Field label="Receipt Header Note" hint="Appears at top of every receipt">
+                    <TextArea value={settings.receiptHeader} onChange={set('receiptHeader')} placeholder="Welcome to Glamour Salon" rows={2}/>
                   </Field>
                   <Field label="Receipt Footer Note" hint="Appears at bottom — refund policy, social handles etc.">
-                    <TextArea value={settings.receiptFooter} onChange={set('receiptFooter')} placeholder="Follow us @glamoursalon · No refunds after service" rows={2}/>
+                    <TextArea value={settings.receiptFooter} onChange={set('receiptFooter')} placeholder="Thank you for visiting! 💛" rows={2}/>
                   </Field>
                 </div>
+
+                {/* Receipt Designer CTA */}
+                <motion.div whileHover={{ y: -2 }} onClick={() => navigate('/admin/receipt-designer')}
+                  style={{ marginTop: 16, padding: '14px 18px', borderRadius: 14, background: `linear-gradient(135deg, #1C1410, #2D1E10)`, border: '1px solid rgba(184,134,11,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(184,134,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Palette size={16} color={C.goldLight} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.goldLight }}>Open Receipt Designer</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>Customize colors, fonts & layout</div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} color={C.gold} />
+                </motion.div>
               </SectionCard>
 
-              {/* ── LOYALTY & TIERS ── */}
-              <SectionCard icon={Award} title="Loyalty & Customer Tiers" id="section-loyalty" color="#6D28D9"
-                subtitle="Thresholds shown as tier badges on customer cards and receipts">
+              {/* LOYALTY */}
+              <SectionCard icon={Award} title="Loyalty & Customer Tiers" id="section-loyalty" color="#6D28D9">
                 <div style={{display:'flex',flexWrap:'wrap',gap:12}}>
                   {[
-                    {tier:'Bronze', key:'bronzeThreshold', default:0,     color:'#CD7F32', emoji:'🥉'},
-                    {tier:'Silver', key:'silverThreshold', default:5000,  color:'#A8A9AD', emoji:'🥈'},
-                    {tier:'Gold',   key:'goldThreshold',   default:15000, color:C.gold,    emoji:'🥇'},
-                    {tier:'Platinum',key:'platinumThreshold',default:50000,color:'#A8D8EA',emoji:'💎'},
-                  ].map(({tier,key,default:def,color,emoji})=>(
+                    {tier:'Bronze',   key:'bronzeThreshold',   default:0,     emoji:'🥉'},
+                    {tier:'Silver',   key:'silverThreshold',   default:5000,  emoji:'🥈'},
+                    {tier:'Gold',     key:'goldThreshold',     default:15000, emoji:'🥇'},
+                    {tier:'Platinum', key:'platinumThreshold', default:50000, emoji:'💎'},
+                  ].map(({tier,key,default:def,emoji})=>(
                     <Field key={key} label={`${emoji} ${tier} Tier — Min Spend (₹)`} half>
                       <Inp type="number" value={settings[key]||def} onChange={e=>upd(key,Number(e.target.value))} placeholder={String(def)}/>
                     </Field>
                   ))}
                 </div>
-                <div style={{padding:'12px 16px',borderRadius:12,background:C.goldPale,border:`1px solid ${C.border}`,fontSize:11,color:C.inkLight,display:'flex',alignItems:'flex-start',gap:8,marginTop:4}}>
-                  <Info size={12} style={{color:C.gold,flexShrink:0,marginTop:1}}/>
-                  <span>Customers auto-upgrade tiers based on lifetime spend. Tier badge shows on their profile, receipts and WhatsApp confirmation messages.</span>
-                </div>
               </SectionCard>
 
-              {/* ── STAFF POLICIES ── */}
-              <SectionCard icon={Users} title="Staff Policies" id="section-staff" color={C.ink}
-                subtitle="Attendance rules, commission and access defaults">
+              {/* STAFF POLICIES */}
+              <SectionCard icon={Users} title="Staff Policies" id="section-staff" color={C.ink}>
                 <div style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:16}}>
-                  <Field label="Default Commission (%)" half hint="Staff commission on services (can be per-staff)">
-                    <Inp type="number" value={settings.defaultCommission||20} onChange={set('defaultCommission')} placeholder="20" min="0" max="100"/>
-                  </Field>
-                  <Field label="Attendance Late Threshold (min)" half hint="Minutes late before marked late">
-                    <Inp type="number" value={settings.lateThresholdMins||15} onChange={set('lateThresholdMins')} placeholder="15"/>
-                  </Field>
-                  <Field label="Working Days per Month" half hint="For attendance % calculation">
-                    <Inp type="number" value={settings.workingDaysPerMonth||26} onChange={set('workingDaysPerMonth')} placeholder="26"/>
-                  </Field>
-                  <Field label="Advance Limit per Staff (₹)" half hint="Max advance salary per month">
-                    <Inp type="number" value={settings.maxAdvancePerStaff||5000} onChange={set('maxAdvancePerStaff')} placeholder="5000"/>
-                  </Field>
+                  <Field label="Default Commission (%)" half><Inp type="number" value={settings.defaultCommission||20} onChange={set('defaultCommission')} placeholder="20" min="0" max="100"/></Field>
+                  <Field label="Attendance Late Threshold (min)" half><Inp type="number" value={settings.lateThresholdMins||15} onChange={set('lateThresholdMins')} placeholder="15"/></Field>
+                  <Field label="Working Days per Month" half><Inp type="number" value={settings.workingDaysPerMonth||26} onChange={set('workingDaysPerMonth')} placeholder="26"/></Field>
+                  <Field label="Advance Limit per Staff (₹)" half><Inp type="number" value={settings.maxAdvancePerStaff||5000} onChange={set('maxAdvancePerStaff')} placeholder="5000"/></Field>
                 </div>
                 <Toggle value={settings.staffCanViewOtherBookings||false} onChange={tog('staffCanViewOtherBookings')} label="Staff Can See All Bookings" sub="If off, staff only sees their own appointments"/>
                 <Toggle value={settings.staffCanEditProfile||false} onChange={tog('staffCanEditProfile')} label="Staff Can Edit Own Profile" sub="Allow staff to update photo and bio"/>
               </SectionCard>
 
-              {/* ── INVENTORY ── */}
-              <SectionCard icon={Package} title="Inventory Alerts" id="section-inventory" color={C.warn}
-                subtitle="Low stock thresholds and reorder rules">
+              {/* INVENTORY */}
+              <SectionCard icon={Package} title="Inventory Alerts" id="section-inventory" color={C.warn}>
                 <div style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:16}}>
-                  <Field label="Low Stock Alert Below (units)" half hint="Triggers warning badge on product">
-                    <Inp type="number" value={settings.lowStockThreshold||5} onChange={set('lowStockThreshold')} placeholder="5" min="1"/>
-                  </Field>
-                  <Field label="Critical Stock Below (units)" half hint="Triggers urgent red alert">
-                    <Inp type="number" value={settings.criticalStockThreshold||2} onChange={set('criticalStockThreshold')} placeholder="2" min="1"/>
-                  </Field>
+                  <Field label="Low Stock Alert Below (units)" half><Inp type="number" value={settings.lowStockThreshold||5} onChange={set('lowStockThreshold')} placeholder="5" min="1"/></Field>
+                  <Field label="Critical Stock Below (units)" half><Inp type="number" value={settings.criticalStockThreshold||2} onChange={set('criticalStockThreshold')} placeholder="2" min="1"/></Field>
                 </div>
                 <Toggle value={settings.inventoryAlertEnabled!==false} onChange={tog('inventoryAlertEnabled')} label="Inventory Alerts Enabled" sub="Show warnings on dashboard when stock is low" color={C.warn}/>
                 <Toggle value={settings.deductStockOnBooking||false} onChange={tog('deductStockOnBooking')} label="Auto-deduct Stock on Booking" sub="Reduce product stock count when service is completed"/>
               </SectionCard>
 
-              {/* ── MESSAGE TEMPLATES ── */}
+              {/* MESSAGE TEMPLATES */}
               <SectionCard icon={Bell} title="WhatsApp & Receipt Templates" id="section-messages" color="#25D366"
-                subtitle={`Uses {salonName}, {customerName}, {service}, {amount}, {date}, {refNo} — all auto-filled from settings`}>
-
+                subtitle="Uses {salonName}, {customerName}, {service}, {amount}, {date}, {refNo} — auto-filled">
                 <div style={{padding:'10px 14px',borderRadius:11,background:'#F0FDF4',border:'1px solid #86EFAC',marginBottom:16,fontSize:11,color:C.ok,display:'flex',gap:8,alignItems:'flex-start'}}>
                   <Zap size={12} style={{flexShrink:0,marginTop:1}}/>
-                  <span>Variables: <strong>{'{salonName}'}</strong> <strong>{'{customerName}'}</strong> <strong>{'{service}'}</strong> <strong>{'{amount}'}</strong> <strong>{'{date}'}</strong> <strong>{'{time}'}</strong> <strong>{'{refNo}'}</strong> <strong>{'{staffName}'}</strong> — salon name & phone auto-fill from Identity settings above.</span>
+                  <span>Variables: <strong>{'{salonName}'}</strong> <strong>{'{customerName}'}</strong> <strong>{'{service}'}</strong> <strong>{'{amount}'}</strong> <strong>{'{date}'}</strong> <strong>{'{time}'}</strong> <strong>{'{refNo}'}</strong> <strong>{'{staffName}'}</strong></span>
                 </div>
-
                 {[
-                  {key:'msgBookingConfirm', label:'Booking Confirmation', hint:'Sent when booking is confirmed',
-                   default:`Hi {customerName}! 🌟 Your appointment at {salonName} is confirmed.\n\n📅 {date} at {time}\n✂️ {service} with {staffName}\n📍 {address}\n🔖 Ref: {refNo}\n\nSee you soon! – {salonName}`},
-                  {key:'msgBookingReminder', label:'Appointment Reminder', hint:'Sent 1–2 hours before appointment',
-                   default:`Reminder! 🔔 Your {service} appointment at {salonName} is in 1 hour.\n\n⏰ {time} today\n📍 {address}\n\nQuestions? Call {phone}`},
-                  {key:'msgPaymentReceipt', label:'Payment Receipt Message', hint:'Sent after payment is recorded',
-                   default:`Thank you {customerName}! 🙏\n\nPayment of ₹{amount} received for {service} at {salonName}.\n🔖 Invoice: {refNo}\n\nThank you for choosing us! Follow us for offers. – {salonName}`},
-                  {key:'msgCancellation', label:'Cancellation Notice', hint:'Sent when booking is cancelled',
-                   default:`Hi {customerName}, your appointment for {service} on {date} at {salonName} has been cancelled.\n\nTo rebook, call {phone}. Sorry for any inconvenience!`},
-                ].map(({key,label,hint,default:def})=>(
+                  {key:'msgBookingConfirm',  label:'Booking Confirmation',   hint:'Sent when booking is confirmed'},
+                  {key:'msgBookingReminder', label:'Appointment Reminder',   hint:'Sent 1–2 hours before appointment'},
+                  {key:'msgPaymentReceipt',  label:'Payment Receipt Message', hint:'Sent after payment is recorded'},
+                  {key:'msgCancellation',    label:'Cancellation Notice',    hint:'Sent when booking is cancelled'},
+                ].map(({key,label,hint})=>(
                   <Field key={key} label={label} hint={hint}>
-                    <TextArea value={settings[key]||def} onChange={set(key)} rows={4}/>
+                    <TextArea value={settings[key]||''} onChange={set(key)} rows={4}/>
                   </Field>
                 ))}
               </SectionCard>
 
-              {/* ── SECURITY ── */}
-              <SectionCard icon={Shield} title="Security & Access" id="section-security" color={C.risk}
-                subtitle="Owner password and panel access controls">
+              {/* SECURITY */}
+              <SectionCard icon={Shield} title="Security & Access" id="section-security" color={C.risk}>
                 <div style={{padding:'12px 16px',borderRadius:12,background:C.riskPale,border:`1px solid ${C.riskBdr}`,marginBottom:16,fontSize:11,color:C.risk,display:'flex',gap:8,alignItems:'center'}}>
                   <Shield size={12} style={{flexShrink:0}}/>
-                  <span>To change your password, use the Change Password option in your profile menu. These controls affect role-based access for staff and receptionists.</span>
+                  <span>To change your password, use the Change Password option in your profile menu.</span>
                 </div>
                 <Toggle value={settings.receptionistCanViewRevenue||false} onChange={tog('receptionistCanViewRevenue')} label="Receptionist Can See Revenue" sub="Show revenue totals on receptionist dashboard" color={C.warn}/>
                 <Toggle value={settings.receptionistCanDeleteBookings||false} onChange={tog('receptionistCanDeleteBookings')} label="Receptionist Can Delete Bookings" sub="If off, only admin can cancel/delete bookings" color={C.risk}/>
                 <Toggle value={settings.receptionistCanEditPrices||false} onChange={tog('receptionistCanEditPrices')} label="Receptionist Can Edit Service Prices" sub="Allow price override during billing" color={C.risk}/>
                 <Toggle value={settings.staffCanSeeCustomerPhone||false} onChange={tog('staffCanSeeCustomerPhone')} label="Staff Can See Customer Phone" sub="Show customer phone number in staff view"/>
                 <div style={{marginTop:16,display:'flex',flexWrap:'wrap',gap:12}}>
-                  <Field label="Session Timeout (minutes)" half hint="Auto logout after inactivity">
-                    <Inp type="number" value={settings.sessionTimeoutMins||60} onChange={set('sessionTimeoutMins')} placeholder="60"/>
-                  </Field>
-                  <Field label="Admin PIN (4–6 digits)" half hint="Quick-access PIN for owner overrides">
-                    <PasswordInp value={settings.adminPIN} onChange={set('adminPIN')} placeholder="Enter PIN…"/>
-                  </Field>
+                  <Field label="Session Timeout (minutes)" half><Inp type="number" value={settings.sessionTimeoutMins||60} onChange={set('sessionTimeoutMins')} placeholder="60"/></Field>
+                  <Field label="Admin PIN (4–6 digits)" half hint="Quick-access PIN for owner overrides"><PasswordInp value={settings.adminPIN} onChange={set('adminPIN')} placeholder="Enter PIN…"/></Field>
                 </div>
               </SectionCard>
 
             </motion.div>
 
-            {/* Bottom save bar */}
             <AnimatePresence>
               {dirty && (
                 <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:16}}
@@ -735,13 +665,9 @@ export default function AdminSettings() {
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
                     <div style={{width:8,height:8,borderRadius:'50%',background:C.goldLight,animation:'pulseDot 2s ease-in-out infinite'}}/>
                     <p style={{fontSize:13,fontWeight:600,color:C.inkMid,margin:0}}>You have unsaved changes</p>
-                    <p style={{fontSize:11,color:C.inkGhost,margin:0}}>Changes sync to all panels after save</p>
                   </div>
                   <div style={{display:'flex',gap:10}}>
-                    <button onClick={()=>setSettings(JSON.parse(original))}
-                      style={{padding:'9px 18px',borderRadius:10,border:`1px solid ${C.border}`,background:'transparent',color:C.inkMid,fontSize:13,fontWeight:600,cursor:'pointer'}}>
-                      Discard
-                    </button>
+                    <button onClick={()=>setSettings(JSON.parse(original))} style={{padding:'9px 18px',borderRadius:10,border:`1px solid ${C.border}`,background:'transparent',color:C.inkMid,fontSize:13,fontWeight:600,cursor:'pointer'}}>Discard</button>
                     <SaveBtn saving={saving} dirty={dirty} onSave={save}/>
                   </div>
                 </motion.div>

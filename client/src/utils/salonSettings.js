@@ -436,3 +436,193 @@ export function printInvoice(inv) {
   const win = window.open('', '_blank', 'width=460,height=820');
   if (win) { win.document.write(html); win.document.close(); }
 }
+// Add this function to salonSettings.js — paste it right after the existing printInvoice function
+
+export function printInvoiceWithDesign(inv, design) {
+  const s       = getSalonSettings();
+  const savedDesign = design || s.receiptDesign || {};
+
+  // Resolve theme
+  const THEMES = {
+    'classic-gold':  { primary:'#B8860B', headerBg:'#0E0B06', headerText:'#FAF3E0', accentBg:'#FFF8E7', footerBg:'#FFF8E7', textColor:'#1A1208', mutedColor:'#9C8660' },
+    'royal-purple':  { primary:'#7C3AED', headerBg:'#1E1B4B', headerText:'#EDE9FE', accentBg:'#F5F3FF', footerBg:'#F5F3FF', textColor:'#1E1B4B', mutedColor:'#6D28D9' },
+    'rose-blush':    { primary:'#BE185D', headerBg:'#500724', headerText:'#FCE7F3', accentBg:'#FDF2F8', footerBg:'#FDF2F8', textColor:'#1F2937', mutedColor:'#BE185D' },
+    'forest-green':  { primary:'#15803D', headerBg:'#052E16', headerText:'#DCFCE7', accentBg:'#F0FDF4', footerBg:'#F0FDF4', textColor:'#1A2E1A', mutedColor:'#15803D' },
+    'slate-modern':  { primary:'#0F172A', headerBg:'#0F172A', headerText:'#F8FAFC', accentBg:'#F8FAFC', footerBg:'#F1F5F9', textColor:'#0F172A', mutedColor:'#64748B' },
+  };
+
+  const themeId   = savedDesign.themeId || 'classic-gold';
+  const baseTheme = THEMES[themeId] || THEMES['classic-gold'];
+
+  const primary    = themeId === 'custom' ? (savedDesign.customPrimary    || '#B8860B') : baseTheme.primary;
+  const headerBg   = themeId === 'custom' ? (savedDesign.customHeaderBg   || '#0E0B06') : baseTheme.headerBg;
+  const headerText = themeId === 'custom' ? (savedDesign.customHeaderText || '#FAF3E0') : baseTheme.headerText;
+  const accentBg   = themeId === 'custom' ? (savedDesign.customAccentBg   || '#FFF8E7') : baseTheme.accentBg;
+  const footerBg   = baseTheme.footerBg;
+  const textColor  = baseTheme.textColor;
+  const mutedColor = baseTheme.mutedColor;
+
+  const displayFont = savedDesign.displayFont || 'Georgia, serif';
+  const bodyFont    = savedDesign.fontFamily  || "'DM Sans', sans-serif";
+  const footerText  = savedDesign.footerText  || s.receiptFooter || 'Thank you for visiting! 💛';
+  const headerNote  = savedDesign.headerNote  || '';
+
+  // Layout width
+  const layoutWidths = { thermal: 300, a5: 420, a4: 560 };
+  const maxWidth = layoutWidths[savedDesign.layout || 'a5'] || 420;
+
+  // Show/hide flags
+  const showLogo     = savedDesign.showLogo     !== false;
+  const showTagline  = savedDesign.showTagline  !== false;
+  const showAddress  = savedDesign.showAddress  !== false;
+  const showPhone    = savedDesign.showPhone    !== false;
+  const showContact  = savedDesign.showContact  !== false;
+  const showGST      = savedDesign.showGST      !== false;
+  const showDiscount = savedDesign.showDiscount !== false;
+  const showLoyalty  = savedDesign.showLoyalty  !== false;
+
+  // Data helpers
+  const fmt     = n => Number(n || 0).toLocaleString('en-IN');
+  const rs      = n => `₹${fmt(n)}`;
+  const fmtDate = d => { try { return new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }); } catch { return '—'; } };
+  const fmtDt   = d => { try { return new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }); } catch { return '—'; } };
+  const fmtTime = t => { if (!t) return '—'; try { const [h,m] = t.split(':').map(Number); const p = h>=12?'PM':'AM'; const dh = h>12?h-12:h===0?12:h; return `${dh}:${String(m).padStart(2,'0')} ${p}`; } catch { return t; } };
+
+  const addr     = getSalonAddress(s);
+  const allPhones = (() => { const extra = (s.phoneNumbers||[]).filter(p=>p?.number); return s.phone ? [{number:s.phone,label:''},...extra] : extra; })();
+  const gst      = showGST ? (s.gstNumber||'') : '';
+
+  const svcs = Array.isArray(inv.services) && inv.services.length
+    ? inv.services
+    : [{ name: inv.service||'—', price: inv.totalAmount||0 }];
+
+  const disc         = (inv.couponDiscount||0) + (inv.manualDiscount||0);
+  const couponDisc   = inv.couponDiscount||0;
+  const manualDisc   = inv.manualDiscount||0;
+
+  const svcRows = svcs.map(sv => `
+    <tr>
+      <td style="padding:9px 0;border-bottom:1px dashed ${primary}25;font-size:13px;color:${textColor}">
+        ${sv.name}${sv.duration ? ` <span style="color:${mutedColor};font-size:10px">(${sv.duration}min)</span>` : ''}
+      </td>
+      <td style="text-align:right;padding:9px 0;border-bottom:1px dashed ${primary}25;font-weight:700;font-size:13px;color:${primary}">${rs(sv.price)}</td>
+    </tr>`).join('');
+
+  const discRows = showDiscount ? [
+    couponDisc>0 ? `<tr><td style="padding:7px 0;font-size:12px;color:#15803D;font-weight:700">🏷 Coupon (${inv.couponCode||''})</td><td style="text-align:right;color:#15803D;font-weight:700">−${rs(couponDisc)}</td></tr>` : '',
+    manualDisc>0 ? `<tr><td style="padding:7px 0;font-size:12px;color:#15803D;font-weight:700">✂ Staff Discount</td><td style="text-align:right;color:#15803D;font-weight:700">−${rs(manualDisc)}</td></tr>` : '',
+  ].join('') : '';
+
+  const gstRow = gst ? `<tr><td style="font-size:10px;color:${mutedColor};padding:4px 0">GST No: ${gst}</td><td></td></tr>` : '';
+
+  const loyaltySection = showLoyalty && (inv.loyaltyPoints||0) > 0 ? `
+    <div style="background:${headerBg};border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-top:14px">
+      <span style="font-size:22px">⭐</span>
+      <div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.4);font-weight:700;text-transform:uppercase;letter-spacing:0.12em">Loyalty Points Earned</div>
+        <div style="font-family:${displayFont};font-size:20px;font-weight:800;color:${primary}">+${inv.loyaltyPoints} pts</div>
+      </div>
+    </div>` : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Invoice ${inv.invoiceRef||inv.refNo||''}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,300&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: ${bodyFont}; background: #F0E8D8; padding: 20px; max-width: ${maxWidth}px; margin: auto; color: ${textColor}; }
+    .card { background: #fff; border-radius: 22px; overflow: hidden; box-shadow: 0 10px 50px rgba(0,0,0,0.15); }
+    .hdr { background: ${headerBg}; padding: 26px 22px 20px; text-align: center; position: relative; overflow: hidden; }
+    .hdr::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 1px, transparent 0, transparent 50%); background-size: 16px 16px; }
+    .logo-badge { width: 52px; height: 52px; border-radius: 15px; background: ${primary}25; border: 2px solid ${primary}40; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; font-family: ${displayFont}; font-size: 22px; font-weight: 700; color: ${primary}; }
+    .salon-name { font-family: ${displayFont}; font-size: ${savedDesign.layout==='thermal'?'20px':'26px'}; font-weight: 700; color: ${headerText}; position: relative; z-index: 1; }
+    .salon-name span { color: ${primary}; }
+    .tagline { font-size: 9px; color: rgba(255,255,255,0.3); letter-spacing: 0.22em; text-transform: uppercase; margin-top: 4px; position: relative; z-index: 1; }
+    .hdr-meta { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 5px; position: relative; z-index: 1; line-height: 1.7; }
+    .phone-chips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 8px; position: relative; z-index: 1; }
+    .phone-chip { font-size: 10px; color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 2px 10px; }
+    .header-note { font-size: 10px; color: rgba(255,255,255,0.45); font-style: italic; margin-top: 6px; position: relative; z-index: 1; }
+    .ref-badge { display: inline-flex; align-items: center; gap: 5px; margin-top: 12px; background: ${primary}20; border: 1px solid ${primary}40; border-radius: 20px; padding: 5px 14px; font-size: 11px; font-weight: 700; color: ${primary}; position: relative; z-index: 1; }
+    .body { padding: 20px 22px; }
+    .sec { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; color: ${mutedColor}; margin: 14px 0 8px; }
+    .sec:first-child { margin-top: 0; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .cell { background: ${accentBg}; border-radius: 10px; padding: 8px 11px; border: 1px solid ${primary}15; }
+    .cl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: ${mutedColor}; }
+    .cv { font-size: 12px; font-weight: 700; color: ${textColor}; margin-top: 2px; }
+    .svc-table { width: 100%; border-collapse: collapse; }
+    .svc-header { background: ${accentBg}; padding: 8px 12px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: ${mutedColor}; border-radius: 10px 10px 0 0; display: flex; justify-content: space-between; }
+    .svc-wrap { border: 1px solid ${primary}20; border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+    .total-row td { font-weight: 900; font-size: 16px; padding: 12px 0; border-top: 2px solid ${primary}; color: ${primary}; }
+    .method-wrap { text-align: center; margin-top: 10px; }
+    .method-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; background: ${accentBg}; color: ${mutedColor}; border: 1px solid ${primary}20; }
+    .ftr { background: ${footerBg}; border-top: 1px solid ${primary}20; padding: 16px 22px; text-align: center; font-size: 11px; color: ${mutedColor}; line-height: 2; }
+    .ftr strong { color: ${primary}; }
+    .pbtn { display: block; width: 100%; margin-top: 20px; padding: 14px; background: linear-gradient(135deg, ${headerBg}, ${primary}); color: #fff; border: none; border-radius: 14px; font-size: 13px; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; }
+    @media print { .pbtn { display: none; } body { background: #fff; padding: 0; } .card { box-shadow: none; border-radius: 0; } }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="hdr">
+    ${showLogo ? `<div class="logo-badge">${(s.salonName||'G').charAt(0)}</div>` : ''}
+    <div class="salon-name">✂ ${s.salonName||'Glamour'}<span>.</span></div>
+    ${showTagline && s.tagline ? `<div class="tagline">${s.tagline}</div>` : ''}
+    ${showAddress && addr ? `<div class="hdr-meta">${addr}</div>` : ''}
+    ${showPhone && allPhones.length ? `<div class="phone-chips">${allPhones.map(p=>`<span class="phone-chip">${p.label?p.label+' · ':'📞 '}${p.number}</span>`).join('')}</div>` : ''}
+    ${headerNote ? `<div class="header-note">${headerNote}</div>` : ''}
+    <div class="ref-badge">🧾 ${inv.invoiceRef||inv.refNo||'INVOICE'}</div>
+  </div>
+
+  <div class="body">
+    <div class="sec">Customer & Booking</div>
+    <div class="grid2">
+      <div class="cell"><div class="cl">Customer</div><div class="cv">${inv.customerName||'Walk-in'}</div></div>
+      <div class="cell"><div class="cl">Phone</div><div class="cv">${inv.customerPhone||'—'}</div></div>
+      <div class="cell"><div class="cl">Date</div><div class="cv">${fmtDate(inv.date||inv.completedAt)}</div></div>
+      <div class="cell"><div class="cl">Time</div><div class="cv">${fmtTime(inv.timeSlot?.start)}</div></div>
+      <div class="cell"><div class="cl">Stylist</div><div class="cv">${inv.stylist||inv.staffName||'—'}</div></div>
+      <div class="cell"><div class="cl">Payment</div><div class="cv">${(inv.paymentMethod||'cash').toUpperCase()}</div></div>
+    </div>
+
+    <div class="sec" style="margin-top:16px">Services</div>
+    <div class="svc-wrap">
+      <div class="svc-header"><span>Service</span><span>Price</span></div>
+      <table class="svc-table">
+        <tbody>
+          ${svcRows}
+          ${discRows}
+          ${gstRow}
+          <tr class="total-row">
+            <td style="padding-left:0">Total Paid</td>
+            <td style="text-align:right;padding-right:0">${rs(inv.finalAmount||0)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="method-wrap">
+      <span class="method-badge">
+        ${(inv.paymentMethod||'cash')==='cash'?'💵 Cash':(inv.paymentMethod==='upi'?'📱 UPI':'💳 Card')}
+      </span>
+    </div>
+
+    ${loyaltySection}
+
+    ${inv.notes ? `<div style="background:${accentBg};border-radius:10px;padding:10px 14px;border:1px solid ${primary}15;margin-top:12px;font-size:12px;color:${mutedColor};font-style:italic">📝 ${inv.notes}</div>` : ''}
+  </div>
+
+  <div class="ftr">
+    <div>${footerText}</div>
+    ${showContact && (s.email||s.website) ? `<div style="margin-top:4px;font-size:10px">${[s.email,s.website].filter(Boolean).join(' · ')}</div>` : ''}
+    <div style="margin-top:6px;opacity:0.5;font-size:10px">Ref: ${inv.invoiceRef||inv.refNo} · ${fmtDt(inv.completedAt||inv.date)}</div>
+  </div>
+</div>
+<button class="pbtn" onclick="window.print()">🖨 &nbsp; Print Invoice</button>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=500,height=820');
+  if (win) { win.document.write(html); win.document.close(); }
+}

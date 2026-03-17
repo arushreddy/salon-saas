@@ -29,6 +29,7 @@ import AdminInvoices   from '@/pages/admin/AdminInvoices';
 import AdminCoupons    from '@/pages/admin/AdminCoupons';
 import AdminPayments   from '@/pages/admin/AdminPayments';
 import AdminSettings   from '@/pages/admin/AdminSettings';
+import ReceiptDesigner from '@/pages/admin/ReceiptDesigner';
 import AdminAnalytics  from '@/pages/admin/AdminAnalytics';
 import SetupWizard     from '@/pages/admin/SetupWizard';
 
@@ -137,6 +138,7 @@ const AppRouter = () => {
             <Route path="coupons"     element={<AdminCoupons />} />
             <Route path="payments"    element={<AdminPayments />} />
             <Route path="settings"    element={<AdminSettings />} />
+          <Route path="receipt-designer" element={<ReceiptDesigner />} />
             <Route path="analytics"   element={<AdminAnalytics />} />
           </Route>
 
