@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
@@ -33,18 +33,18 @@ const NAV_GROUPS = [
   {
     label: 'Management',
     items: [
-      { label: 'Salons', path: '/superadmin/salons', icon: Building2, badge: 'salons' },
-      { label: 'Plans', path: '/superadmin/plans', icon: CreditCard },
+      { label: 'Salons',     path: '/superadmin/salons',     icon: Building2,    badge: 'salons' },
+      { label: 'Plans',      path: '/superadmin/plans',      icon: CreditCard },
       { label: 'Franchises', path: '/superadmin/franchises', icon: GitBranch },
-      { label: 'Users', path: '/superadmin/users', icon: Users },
+      { label: 'Users',      path: '/superadmin/users',      icon: Users },
     ],
   },
   {
     label: 'Tools',
     items: [
-      { label: 'WhatsApp', path: '/superadmin/whatsapp', icon: MessageSquare, accent: C.green },
-      { label: 'Export', path: '/superadmin/export', icon: Download },
-      { label: 'Security', path: '/superadmin/security', icon: Shield, accent: C.red },
+      { label: 'WhatsApp', path: '/superadmin/whatsapp',  icon: MessageSquare, accent: '#34D399' },
+      { label: 'Export',   path: '/superadmin/export',    icon: Download },
+      { label: 'Security', path: '/superadmin/security',  icon: Shield, accent: '#F87171' },
     ],
   },
   {
@@ -55,9 +55,19 @@ const NAV_GROUPS = [
   },
 ];
 
+// All nav items flat for mobile bottom bar
+const ALL_NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
+const MOBILE_NAV = [
+  { label: 'Dashboard', path: '/superadmin',            icon: LayoutDashboard, exact: true },
+  { label: 'Salons',    path: '/superadmin/salons',     icon: Building2 },
+  { label: 'Plans',     path: '/superadmin/plans',      icon: CreditCard },
+  { label: 'Users',     path: '/superadmin/users',      icon: Users },
+  { label: 'Settings',  path: '/superadmin/settings',   icon: Settings },
+];
+
 const SIDEBAR_W = 220;
 
-const NavItem = ({ item, collapsed, stats }) => {
+const NavItem = ({ item, collapsed, stats, onClose }) => {
   const location = useLocation();
   const isActive = item.exact
     ? location.pathname === item.path
@@ -68,6 +78,7 @@ const NavItem = ({ item, collapsed, stats }) => {
   return (
     <Link
       to={item.path}
+      onClick={onClose}
       title={collapsed ? item.label : undefined}
       style={{
         display: 'flex', alignItems: 'center', gap: 10,
@@ -181,7 +192,7 @@ const SidebarContent = ({ collapsed, onClose, onCollapse, stats }) => {
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, overflowY: 'auto', padding: collapsed ? '12px 8px' : '12px 8px' }}>
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
         {NAV_GROUPS.map(group => (
           <div key={group.label} style={{ marginBottom: 8 }}>
             {!collapsed && (
@@ -194,7 +205,7 @@ const SidebarContent = ({ collapsed, onClose, onCollapse, stats }) => {
               </div>
             )}
             {group.items.map(item => (
-              <NavItem key={item.path} item={item} collapsed={collapsed} stats={stats} />
+              <NavItem key={item.path} item={item} collapsed={collapsed} stats={stats} onClose={onClose} />
             ))}
           </div>
         ))}
@@ -221,14 +232,13 @@ const SidebarContent = ({ collapsed, onClose, onCollapse, stats }) => {
               {(user?.name || 'S').charAt(0).toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.ink, truncate: true }}>{user?.name || 'Super Admin'}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name || 'Super Admin'}</div>
               <div style={{ fontSize: 10, color: C.purple, fontWeight: 500 }}>Super Admin</div>
             </div>
             <button onClick={() => { logout(); navigate('/login'); }} style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: C.inkMuted, padding: 4, display: 'flex', borderRadius: 6,
-            }}
-            title="Logout">
+            }} title="Logout">
               <LogOut size={13} />
             </button>
           </div>
@@ -237,8 +247,7 @@ const SidebarContent = ({ collapsed, onClose, onCollapse, stats }) => {
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'none', border: `1px solid ${C.border}`, borderRadius: 9,
             padding: 9, cursor: 'pointer', color: C.inkMuted,
-          }}
-          title="Logout">
+          }} title="Logout">
             <LogOut size={14} />
           </button>
         )}
@@ -247,46 +256,125 @@ const SidebarContent = ({ collapsed, onClose, onCollapse, stats }) => {
   );
 };
 
+// Mobile Bottom Nav for superadmin
+const SuperAdminMobileNav = () => {
+  const location = useLocation();
+  return (
+    <>
+      <style>{`
+        .sa-bnav {
+          display: none;
+          position: fixed;
+          bottom: 0; left: 0; right: 0;
+          z-index: 60;
+          background: rgba(10,9,7,0.97);
+          backdrop-filter: blur(20px);
+          border-top: 1px solid rgba(212,168,75,0.15);
+          box-shadow: 0 -4px 30px rgba(0,0,0,0.3);
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+        @media (max-width: 1023px) { .sa-bnav { display: flex; } }
+        .sa-bnav-inner { display: flex; width: 100%; align-items: stretch; }
+        .sa-bnav-item {
+          flex: 1; display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          gap: 3px; padding: 10px 4px 8px;
+          text-decoration: none; color: rgba(250,246,239,0.35);
+          transition: color 0.2s; min-height: 56px;
+          position: relative; -webkit-tap-highlight-color: transparent;
+        }
+        .sa-bnav-item.active { color: #D4A84B; }
+        .sa-bnav-item.active::before {
+          content: ''; position: absolute;
+          top: 0; left: 50%; transform: translateX(-50%);
+          width: 28px; height: 2px;
+          background: linear-gradient(90deg, #D4A84B, #B8892A);
+          border-radius: 0 0 4px 4px;
+        }
+        .sa-bnav-label {
+          font-size: 9.5px; font-weight: 500;
+          white-space: nowrap; text-align: center;
+        }
+      `}</style>
+      <nav className="sa-bnav">
+        <div className="sa-bnav-inner">
+          {MOBILE_NAV.map(item => {
+            const Icon = item.icon;
+            const isActive = item.exact
+              ? location.pathname === item.path
+              : location.pathname.startsWith(item.path);
+            return (
+              <Link key={item.path} to={item.path} className={`sa-bnav-item${isActive ? ' active' : ''}`}>
+                <Icon size={20} strokeWidth={isActive ? 2.2 : 1.5} />
+                <span className="sa-bnav-label">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
+  );
+};
+
 const SuperAdminLayout = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [stats, setStats] = useState({});
+  const [collapsed,   setCollapsed]   = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [isDesktop,   setIsDesktop]   = useState(window.innerWidth >= 1024);
+  const [stats,       setStats]       = useState({});
   const location = useLocation();
 
+  // Track screen size
+  useEffect(() => {
+    const update = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  // Close mobile sidebar on route change
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: C.bgMid, overflow: 'hidden' }}>
-      {/* Desktop sidebar */}
-      <motion.div
-        animate={{ width: collapsed ? 60 : SIDEBAR_W }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-        style={{ flexShrink: 0, position: 'relative', zIndex: 10 }}
-      >
-        <div style={{ position: 'absolute', inset: 0 }}>
-          <SidebarContent
-            collapsed={collapsed}
-            onCollapse={() => setCollapsed(true)}
-            stats={stats}
-          />
-          {collapsed && (
-            <button
-              onClick={() => setCollapsed(false)}
-              style={{
-                position: 'absolute', top: 18, right: -14, zIndex: 20,
-                width: 26, height: 26, borderRadius: 8,
-                background: C.bgCard, border: `1px solid ${C.border}`,
-                cursor: 'pointer', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', color: C.inkMuted,
-              }}
-            >
-              <ChevronRight size={12} />
-            </button>
-          )}
-        </div>
-      </motion.div>
+      <style>{`
+        @media (max-width: 1023px) {
+          .sa-page-content { padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important; }
+          .sa-search-full  { display: none !important; }
+          .sa-status-badge { display: none !important; }
+        }
+      `}</style>
 
-      {/* Mobile overlay */}
+      {/* ── Desktop Sidebar ── */}
+      {isDesktop && (
+        <motion.div
+          animate={{ width: collapsed ? 60 : SIDEBAR_W }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          style={{ flexShrink: 0, position: 'relative', zIndex: 10, height: '100vh' }}
+        >
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <SidebarContent
+              collapsed={collapsed}
+              onCollapse={() => setCollapsed(true)}
+              stats={stats}
+            />
+            {collapsed && (
+              <button
+                onClick={() => setCollapsed(false)}
+                style={{
+                  position: 'absolute', top: 18, right: -14, zIndex: 20,
+                  width: 26, height: 26, borderRadius: 8,
+                  background: C.bgCard, border: `1px solid ${C.border}`,
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', color: C.inkMuted,
+                }}
+              >
+                <ChevronRight size={12} />
+              </button>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── Mobile Sidebar Overlay ── */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -312,31 +400,37 @@ const SuperAdminLayout = () => {
         )}
       </AnimatePresence>
 
-      {/* Main area */}
+      {/* ── Main Area ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
         {/* Top bar */}
         <div style={{
           height: 56, borderBottom: `1px solid ${C.border}`,
           background: C.bg, display: 'flex', alignItems: 'center',
-          padding: '0 20px', gap: 12, flexShrink: 0,
+          padding: '0 16px', gap: 12, flexShrink: 0,
         }}>
+          {/* Hamburger — always visible on mobile */}
           <button
             onClick={() => setMobileOpen(true)}
             style={{
-              display: 'none', background: 'none', border: `1px solid ${C.border}`,
+              background: 'none', border: `1px solid ${C.border}`,
               borderRadius: 8, padding: 7, cursor: 'pointer', color: C.inkMuted,
+              display: isDesktop ? 'none' : 'flex',
+              alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}
-            className="mobile-menu-btn"
           >
             <Menu size={16} />
           </button>
 
-          {/* Global search */}
-          <div style={{
-            flex: 1, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 8,
-            background: C.bgCard, border: `1px solid ${C.border}`,
-            borderRadius: 10, padding: '0 12px', height: 36,
-          }}>
+          {/* Search */}
+          <div
+            className="sa-search-full"
+            style={{
+              flex: 1, maxWidth: 420, display: 'flex', alignItems: 'center', gap: 8,
+              background: C.bgCard, border: `1px solid ${C.border}`,
+              borderRadius: 10, padding: '0 12px', height: 36,
+            }}
+          >
             <Search size={14} color={C.inkMuted} />
             <input
               placeholder="Search salons, users, franchises…"
@@ -351,19 +445,20 @@ const SuperAdminLayout = () => {
             }}>⌘K</kbd>
           </div>
 
+          {/* Right side */}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Status badge */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              background: C.greenPale, border: `1px solid ${C.green}30`,
-              borderRadius: 20, padding: '4px 10px',
-              fontSize: 11, fontWeight: 600, color: C.green,
-            }}>
-              <Activity size={11} />
-              Live
+            <div
+              className="sa-status-badge"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: C.greenPale, border: `1px solid ${C.green}30`,
+                borderRadius: 20, padding: '4px 10px',
+                fontSize: 11, fontWeight: 600, color: C.green,
+              }}
+            >
+              <Activity size={11} /> Live
             </div>
 
-            {/* Bell */}
             <button style={{
               background: 'none', border: `1px solid ${C.border}`, borderRadius: 9,
               padding: 8, cursor: 'pointer', color: C.inkMuted, display: 'flex', position: 'relative',
@@ -375,7 +470,6 @@ const SuperAdminLayout = () => {
               }} />
             </button>
 
-            {/* Globe */}
             <button style={{
               background: 'none', border: `1px solid ${C.border}`, borderRadius: 9,
               padding: 8, cursor: 'pointer', color: C.inkMuted, display: 'flex',
@@ -386,16 +480,16 @@ const SuperAdminLayout = () => {
         </div>
 
         {/* Page content */}
-        <div style={{ flex: 1, overflowY: 'auto', background: C.bgMid }}>
+        <div
+          className="sa-page-content"
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', background: C.bgMid }}
+        >
           <Outlet />
         </div>
       </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .mobile-menu-btn { display: flex !important; }
-        }
-      `}</style>
+      {/* Mobile Bottom Nav */}
+      <SuperAdminMobileNav />
     </div>
   );
 };

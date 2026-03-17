@@ -13,7 +13,6 @@ import {
   UserPlus, Plus, Activity,
 } from 'lucide-react';
 
-// ─── Nav Items ────────────────────────────────────────────────────────────────
 const ADMIN_MENU = [
   { label: 'Dashboard',    path: '/admin',              icon: LayoutDashboard },
   { label: 'Appointments', path: '/admin/appointments', icon: Calendar        },
@@ -29,7 +28,6 @@ const ADMIN_MENU = [
   { label: 'Settings',     path: '/admin/settings',     icon: Settings        },
 ];
 
-// Quick actions for command palette
 const QUICK_ACTIONS = [
   { label: 'New Appointment',  icon: Calendar,    path: '/admin/appointments', color: '#1D4ED8' },
   { label: 'Add Staff',        icon: UserPlus,    path: '/admin/staff',        color: '#15803D' },
@@ -41,7 +39,6 @@ const QUICK_ACTIONS = [
   { label: 'Settings',         icon: Settings,    path: '/admin/settings',     color: '#6B7280' },
 ];
 
-// ─── Breadcrumb map ───────────────────────────────────────────────────────────
 const BREADCRUMB_MAP = {
   '/admin':              ['Dashboard'],
   '/admin/appointments': ['Dashboard', 'Appointments'],
@@ -57,7 +54,6 @@ const BREADCRUMB_MAP = {
   '/admin/settings':     ['Dashboard', 'Settings'],
 };
 
-// ─── Sync Dot ─────────────────────────────────────────────────────────────────
 const SyncDot = ({ syncing }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
     {syncing ? (
@@ -74,13 +70,16 @@ const SyncDot = ({ syncing }) => (
   </div>
 );
 
-// ─── Command Palette ──────────────────────────────────────────────────────────
 const CommandPalette = ({ onClose, navigate }) => {
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
-  const location = useLocation();
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    inputRef.current?.focus();
+    // Lock body scroll when palette is open
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
   const allItems = [
     ...ADMIN_MENU.map(m => ({ label: m.label, icon: m.icon, path: m.path, type: 'page', color: '#B8860B' })),
@@ -98,7 +97,12 @@ const CommandPalette = ({ onClose, navigate }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(28,23,18,0.6)', backdropFilter: 'blur(8px)', zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '10vh', padding: '10vh 16px 0' }}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(28,23,18,0.6)', backdropFilter: 'blur(8px)',
+        zIndex: 200, display: 'flex', alignItems: 'flex-start',
+        justifyContent: 'center', padding: '10vh 16px 0',
+      }}
       onClick={onClose}
     >
       <motion.div
@@ -107,9 +111,12 @@ const CommandPalette = ({ onClose, navigate }) => {
         exit={{ opacity: 0, y: -10, scale: 0.97 }}
         transition={{ duration: 0.2 }}
         onClick={e => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 560, background: '#FDFAF4', borderRadius: 18, border: '1px solid #DFD0A8', boxShadow: '0 25px 80px rgba(28,23,18,0.20)', overflow: 'hidden' }}
+        style={{
+          width: '100%', maxWidth: 560, background: '#FDFAF4',
+          borderRadius: 18, border: '1px solid #DFD0A8',
+          boxShadow: '0 25px 80px rgba(28,23,18,0.20)', overflow: 'hidden',
+        }}
       >
-        {/* Search bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderBottom: '1px solid #DFD0A8' }}>
           <Search size={18} color='#9C8660' style={{ flexShrink: 0 }} />
           <input
@@ -122,8 +129,6 @@ const CommandPalette = ({ onClose, navigate }) => {
           />
           <kbd style={{ padding: '2px 8px', borderRadius: 6, background: '#F3ECE0', border: '1px solid #DFD0A8', fontSize: 11, color: '#9C8660', fontFamily: 'inherit' }}>ESC</kbd>
         </div>
-
-        {/* Results */}
         <div style={{ maxHeight: 320, overflowY: 'auto', padding: '8px 0' }}>
           {filtered.length === 0 ? (
             <div style={{ padding: '24px 20px', textAlign: 'center', color: '#9C8660', fontSize: 13 }}>No results found</div>
@@ -136,11 +141,7 @@ const CommandPalette = ({ onClose, navigate }) => {
                   <button
                     key={`${item.path}-${i}`}
                     onClick={() => go(item.path)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-                      padding: '10px 18px', background: 'none', border: 'none', cursor: 'pointer',
-                      textAlign: 'left', transition: 'background 0.12s',
-                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s' }}
                     onMouseEnter={e => e.currentTarget.style.background = '#F3ECE0'}
                     onMouseLeave={e => e.currentTarget.style.background = 'none'}
                   >
@@ -158,7 +159,6 @@ const CommandPalette = ({ onClose, navigate }) => {
             </>
           )}
         </div>
-
         <div style={{ padding: '10px 18px', borderTop: '1px solid #DFD0A8', display: 'flex', gap: 16 }}>
           {[['↵', 'Go'], ['ESC', 'Close']].map(([key, label]) => (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -172,7 +172,6 @@ const CommandPalette = ({ onClose, navigate }) => {
   );
 };
 
-// ─── Notification Panel ───────────────────────────────────────────────────────
 const NotificationPanel = ({ onClose }) => (
   <motion.div
     initial={{ opacity: 0, y: 6, scale: 0.96 }}
@@ -193,13 +192,14 @@ const NotificationPanel = ({ onClose }) => (
     </div>
     <div style={{ padding: '10px 0' }}>
       {[
-        { icon: Calendar, text: 'New appointment booked', sub: '2 minutes ago', color: '#1D4ED8' },
-        { icon: TrendingUp, text: "Today's revenue updated", sub: '15 minutes ago', color: '#15803D' },
-        { icon: Activity, text: 'Staff attendance marked', sub: '1 hour ago', color: '#B8860B' },
+        { icon: Calendar,    text: 'New appointment booked',  sub: '2 minutes ago',  color: '#1D4ED8' },
+        { icon: TrendingUp,  text: "Today's revenue updated", sub: '15 minutes ago', color: '#15803D' },
+        { icon: Activity,    text: 'Staff attendance marked', sub: '1 hour ago',     color: '#B8860B' },
       ].map((n, i) => {
         const Icon = n.icon;
         return (
-          <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 16px', cursor: 'pointer', transition: 'background 0.14s' }}
+          <div key={i}
+            style={{ display: 'flex', gap: 12, padding: '10px 16px', cursor: 'pointer', transition: 'background 0.14s' }}
             onMouseEnter={e => e.currentTarget.style.background = 'rgba(184,137,42,0.05)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
@@ -220,33 +220,59 @@ const NotificationPanel = ({ onClose }) => (
   </motion.div>
 );
 
-// ─── Admin Layout ─────────────────────────────────────────────────────────────
 const AdminLayout = () => {
   const { user, logout } = useAuth();
   const { syncing } = useDataStore();
   const navigate  = useNavigate();
   const location  = useLocation();
 
-  const [mobileOpen,    setMobileOpen]    = useState(false);
-  const [collapsed,     setCollapsed]     = useState(false);
-  const [userMenuOpen,  setUserMenuOpen]  = useState(false);
-  const [notifOpen,     setNotifOpen]     = useState(false);
-  const [cmdOpen,       setCmdOpen]       = useState(false);
-  const [isDesktop,     setIsDesktop]     = useState(window.innerWidth >= 1024);
-  const [notifCount]                      = useState(3); // demo
+  const [mobileOpen,   setMobileOpen]   = useState(false);
+  const [collapsed,    setCollapsed]    = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notifOpen,    setNotifOpen]    = useState(false);
+  const [cmdOpen,      setCmdOpen]      = useState(false);
+  const [isDesktop,    setIsDesktop]    = useState(window.innerWidth >= 1024);
+  const [notifCount]                   = useState(3);
+
+  // ── FIX: always sync body overflow with mobileOpen state ──────────────────
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
+  // ── FIX: close everything on route change ─────────────────────────────────
+  useEffect(() => {
+    setMobileOpen(false);
+    setUserMenuOpen(false);
+    setNotifOpen(false);
+    setCmdOpen(false);
+    document.body.style.overflow = '';
+  }, [location.pathname]);
 
   // Track screen size
   useEffect(() => {
-    const update = () => setIsDesktop(window.innerWidth >= 1024);
+    const update = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+      // If resized to desktop, close mobile sidebar and reset overflow
+      if (window.innerWidth >= 1024) {
+        setMobileOpen(false);
+        document.body.style.overflow = '';
+      }
+    };
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  // Global keyboard shortcut: Cmd/Ctrl+K
+  // Global keyboard shortcut
   useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setCmdOpen(true); }
-      if (e.key === 'Escape') { setCmdOpen(false); setUserMenuOpen(false); setNotifOpen(false); }
+      if (e.key === 'Escape') {
+        setCmdOpen(false);
+        setUserMenuOpen(false);
+        setNotifOpen(false);
+        // Don't close mobileOpen on Escape — use the X button or overlay tap
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -255,10 +281,26 @@ const AdminLayout = () => {
   // Close dropdowns on outside click
   useEffect(() => {
     if (!userMenuOpen && !notifOpen) return;
-    const close = (e) => { setUserMenuOpen(false); setNotifOpen(false); };
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
+    const close = () => { setUserMenuOpen(false); setNotifOpen(false); };
+    // Use setTimeout to avoid instant close on the same click that opened it
+    const timer = setTimeout(() => {
+      window.addEventListener('click', close, { once: true });
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', close);
+    };
   }, [userMenuOpen, notifOpen]);
+
+  // ── FIX: safe close function that always resets overflow ──────────────────
+  const closeMobileSidebar = useCallback(() => {
+    setMobileOpen(false);
+    document.body.style.overflow = '';
+  }, []);
+
+  const openMobileSidebar = useCallback(() => {
+    setMobileOpen(true);
+  }, []);
 
   const initials = (name = '') =>
     name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'A';
@@ -277,6 +319,13 @@ const AdminLayout = () => {
         .adm-main { overflow-x: hidden; }
         @media (max-width: 1023px) {
           .glm-page-main { padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important; }
+          .adm-breadcrumb { display: none !important; }
+          .adm-search-btn { display: none !important; }
+          .adm-sync       { display: none !important; }
+          .adm-username   { display: none !important; }
+        }
+        @media (max-width: 480px) {
+          .adm-search-btn { display: none !important; }
         }
       `}</style>
 
@@ -285,7 +334,7 @@ const AdminLayout = () => {
         menuItems={ADMIN_MENU}
         title="Admin Panel"
         mobileOpen={mobileOpen}
-        onMobileClose={() => setMobileOpen(false)}
+        onMobileClose={closeMobileSidebar}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(c => !c)}
       />
@@ -298,9 +347,11 @@ const AdminLayout = () => {
           minHeight: '100vh',
           transition: 'margin-left 0.3s cubic-bezier(0.4,0,0.2,1)',
           maxWidth: '100%',
+          // ── FIX: prevent main content from being interactive when sidebar is open ──
+          pointerEvents: mobileOpen ? 'none' : 'auto',
         }}
       >
-        {/* ── Header ── */}
+        {/* Header */}
         <header style={{
           position: 'sticky', top: 0, zIndex: 30, height: 56,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -310,20 +361,19 @@ const AdminLayout = () => {
           borderBottom: '1px solid rgba(184,137,42,0.12)',
           boxShadow: '0 1px 0 rgba(180,148,90,0.08)',
           gap: 10,
+          pointerEvents: 'auto', // always interactive
         }}>
-          {/* Left: hamburger + breadcrumb */}
+          {/* Left */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
             <button
               onClick={() => {
                 if (isDesktop) setCollapsed(c => !c);
-                else setMobileOpen(true);
+                else openMobileSidebar();
               }}
               style={{ padding: 8, marginLeft: -4, background: 'none', border: 'none', cursor: 'pointer', color: '#1c1712', borderRadius: 8, display: 'flex', alignItems: 'center', flexShrink: 0 }}
             >
               <Menu size={20} />
             </button>
-
-            {/* Breadcrumb */}
             <div className="adm-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
               {breadcrumbs.map((crumb, i) => (
                 <div key={crumb} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -340,7 +390,7 @@ const AdminLayout = () => {
             </div>
           </div>
 
-          {/* Center: Quick Search (visible on md+) */}
+          {/* Center: Search */}
           <button
             onClick={() => setCmdOpen(true)}
             className="adm-search-btn"
@@ -348,8 +398,7 @@ const AdminLayout = () => {
               display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
               borderRadius: 10, border: '1px solid rgba(184,137,42,0.18)',
               background: 'rgba(243,236,224,0.6)', cursor: 'pointer',
-              color: '#9C8660', fontSize: 13, flexShrink: 0,
-              transition: 'all 0.18s',
+              color: '#9C8660', fontSize: 13, flexShrink: 0, transition: 'all 0.18s',
             }}
           >
             <Search size={14} />
@@ -359,10 +408,7 @@ const AdminLayout = () => {
 
           {/* Right */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-            {/* Sync */}
-            <div className="adm-sync">
-              <SyncDot syncing={syncing} />
-            </div>
+            <div className="adm-sync"><SyncDot syncing={syncing} /></div>
 
             {/* Notifications */}
             <div style={{ position: 'relative' }}>
@@ -436,7 +482,7 @@ const AdminLayout = () => {
                   >
                     <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(184,137,42,0.10)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                        <div style={{ width: 38, height: 38, borderRadius: 10, background: 'linear-gradient(135deg, #DAA520, #B8860B)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(184,137,42,0.3)', flexShrink: 0 }}>
+                        <div style={{ width: 38, height: 38, borderRadius: 10, background: 'linear-gradient(135deg, #DAA520, #B8860B)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           <span style={{ fontFamily: 'Cormorant Garamond', fontSize: 16, fontWeight: 600, color: '#fff', fontStyle: 'italic' }}>{initials(user?.name)}</span>
                         </div>
                         <div style={{ minWidth: 0 }}>
@@ -449,8 +495,8 @@ const AdminLayout = () => {
                       </div>
                     </div>
                     {[
-                      { icon: Settings,   label: 'Settings',  path: '/admin/settings' },
-                      { icon: BarChart3,  label: 'Analytics', path: '/admin/analytics' },
+                      { icon: Settings,  label: 'Settings',  path: '/admin/settings'  },
+                      { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
                     ].map(item => {
                       const Icon = item.icon;
                       return (
@@ -492,18 +538,6 @@ const AdminLayout = () => {
       <AnimatePresence>
         {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} navigate={navigate} />}
       </AnimatePresence>
-
-      <style>{`
-        @media (max-width: 767px) {
-          .adm-breadcrumb { display: none !important; }
-          .adm-search-btn { display: none !important; }
-          .adm-sync { display: none !important; }
-          .adm-username { display: none !important; }
-        }
-        @media (max-width: 480px) {
-          .adm-search-btn { display: none !important; }
-        }
-      `}</style>
     </div>
   );
 };
