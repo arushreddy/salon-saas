@@ -198,13 +198,16 @@ export function DataStoreProvider({ children }) {
     return () => clearInterval(id);
   }, [fetchCustomers, fetchInventory]);
 
-  // Settings poll every 2 min (rarely changes)
+  // Settings + services poll every 2 min
   useEffect(() => {
     const id = setInterval(() => {
-      if (isVisible() && localStorage.getItem('accessToken')) fetchSettings();
+      if (isVisible() && localStorage.getItem('accessToken')) {
+        fetchSettings();
+        fetchServices(); // ✅ FIX: re-poll services so new ones appear without refresh
+      }
     }, 120_000);
     return () => clearInterval(id);
-  }, [fetchSettings]);
+  }, [fetchSettings, fetchServices]);
 
   // Main 45s poller
   useEffect(() => {
@@ -220,7 +223,7 @@ export function DataStoreProvider({ children }) {
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible); };
   }, [refresh]);
 
-  // BroadcastChannel (debounced 600ms) — re-fetches bookings + inventory on any mutation
+  // BroadcastChannel (debounced 600ms) — re-fetches on any mutation
   useEffect(() => {
     if (!BC) return;
     let debTimer = null;
@@ -229,12 +232,13 @@ export function DataStoreProvider({ children }) {
       clearTimeout(debTimer);
       debTimer = setTimeout(() => {
         refresh(true);
-        fetchInventory(); // inventory changes (admin add/edit, receptionist deduct) propagate instantly
+        fetchInventory();
+        fetchServices(); // ✅ FIX: services now update instantly when you add/edit one
       }, 600);
     };
     BC.addEventListener('message', handler);
     return () => { BC.removeEventListener('message', handler); clearTimeout(debTimer); };
-  }, [refresh, fetchInventory]);
+  }, [refresh, fetchInventory, fetchServices]); // ✅ FIX: added fetchServices to deps
 
   const value = {
     bookings, stats, services, staff, liveStatus, liveSummary,
@@ -242,6 +246,7 @@ export function DataStoreProvider({ children }) {
     customers, inventory,
     refresh, refreshBookings: fetchBookings, refreshStaff: fetchLiveStaff,
     refreshSettings: fetchSettings,
+    refreshServices: fetchServices, // ✅ exposed so any page can manually trigger a refresh
     refreshCustomers: fetchCustomers,
     refreshInventory: fetchInventory,
     broadcastChange,
