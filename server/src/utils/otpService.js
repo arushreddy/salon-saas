@@ -57,7 +57,16 @@ const sendEmail = async (email, otp, purpose, salonName = 'Your Salon') => {
 
   console.log(`[Nodemailer] Sending to: ${email}`);
   const nodemailer = require('nodemailer');
-  const transporter = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
+
+  // Force IPv4 — Render free tier does not support IPv6
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    family: 4,
+    auth: { user, pass },
+  });
+
   const info = await transporter.sendMail({ from: `"${salonName}" <${user}>`, to: email, subject, html });
   console.log('[Nodemailer] Sent. ID:', info.messageId);
   return { devMode: false };
