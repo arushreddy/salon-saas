@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  esbuild: {
+    jsxInject: `import React from 'react'`,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
