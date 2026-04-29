@@ -1,9 +1,8 @@
 // server/src/utils/otpService.js
 // OTP delivery:
 //   phone  → WhatsApp via Twilio
-//   email  → Gmail via Nodemailer
-const dns = require('dns');
-dns.setDefaultResultOrder('ipv4first');
+//   email  → Resend (HTTP API, no SMTP/IPv6 issues)
+
 const OTP = require('../models/OTP');
 
 const generateOTP = () => String(Math.floor(100000 + Math.random() * 900000));
@@ -14,10 +13,9 @@ const sendOTPViaWhatsApp = async (phone, otp, salonName = 'Your Salon') => {
   return await sendOTPWhatsApp(phone, otp, 'login', salonName);
 };
 
-// ── Send Email via Nodemailer ──────────────────────────────────────────────
+// ── Send Email via Resend ──────────────────────────────────────────────────
 const sendEmail = async (email, otp, purpose, salonName = 'Your Salon') => {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const apiKey = process.env.RESEND_API_KEY;
 
   const subject = purpose === 'reset'
     ? `Password Reset OTP — ${salonName}`
@@ -49,27 +47,31 @@ const sendEmail = async (email, otp, purpose, salonName = 'Your Salon') => {
     </div>
   `;
 
-  if (!user || !pass) {
+  if (!apiKey) {
     console.log('\n==============================');
     console.log(`[OTP DEV] Email → ${email} | OTP: ${otp}`);
     console.log('==============================\n');
     return { devMode: true, otp };
   }
 
-  console.log(`[Nodemailer] Sending to: ${email}`);
-  const nodemailer = require('nodemailer');
+  console.log(`[Resend] Sending to: ${email}`);
 
-  // Force IPv4 — Render free tier does not support IPv6
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    family: 4,
-    auth: { user, pass },
+  const { Resend } = require('resend');
+  const resend = new Resend(apiKey);
+
+  const { data, error } = await resend.emails.send({
+    from: 'Glamour Salon <onboarding@resend.dev>',
+    to: email,
+    subject,
+    html,
   });
 
-  const info = await transporter.sendMail({ from: `"${salonName}" <${user}>`, to: email, subject, html });
-  console.log('[Nodemailer] Sent. ID:', info.messageId);
+  if (error) {
+    console.error('[Resend] Error:', error);
+    throw new Error(error.message);
+  }
+
+  console.log('[Resend] Sent. ID:', data.id);
   return { devMode: false };
 };
 
