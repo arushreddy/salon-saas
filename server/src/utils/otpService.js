@@ -2,7 +2,8 @@
 // OTP delivery:
 //   phone  → WhatsApp via Twilio
 //   email  → Gmail via Nodemailer
-
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
 const OTP = require('../models/OTP');
 
 const generateOTP = () => String(Math.floor(100000 + Math.random() * 900000));
