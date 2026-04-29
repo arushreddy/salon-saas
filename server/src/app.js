@@ -27,6 +27,7 @@ require('./models/SubscriptionPayment');
 require('./models/OTP');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // 1. IMPORT ALL ROUTES
 const inventoryRoutes       = require('./routes/inventory.routes');
